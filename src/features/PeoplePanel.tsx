@@ -19,7 +19,9 @@ export function PeoplePanel({ onEdit }: Props) {
   if (group.people.length === 0) return null;
 
   const names = displayHandles(group.people);
+  const enabledPeople = group.people.filter((p) => p.enabled);
   const allOn = group.people.every((p) => p.enabled);
+  const focusedPersonId = !allOn && enabledPeople.length === 1 ? enabledPeople[0].id : null;
 
   async function handleReupload(file: File | undefined) {
     if (!file || !reuploadFor) return;
@@ -45,51 +47,68 @@ export function PeoplePanel({ onEdit }: Props) {
           </button>
         )}
       </h3>
-      {group.people.map((p) => (
-        <div key={p.id} className={`person${p.enabled ? '' : ' person--off'}`}>
-          <AvatarChip avatar={p.avatar} size={30} title={names.get(p.id)} />
-          <div
-            className="person__main"
-            title="Click to show/hide on the calendar"
-            onClick={() => dispatch({ type: 'togglePerson', id: p.id, enabled: !p.enabled })}
-          >
-            <span className="person__handle">{names.get(p.id)}</span>
-            <span className="person__meta">
-              {p.schedule
-                ? `${new Set(p.schedule.sections.map((s) => s.courseCode || s.title)).size} courses`
-                : 'no schedule yet'}
-            </span>
-          </div>
-          <div className="person__actions">
-            <button type="button" className="btn btn--ghost btn--icon" title="Edit handle / avatar" onClick={() => onEdit(p)}>
-              ✎
-            </button>
+      {group.people.map((p) => {
+        const isFocused = focusedPersonId === p.id;
+        const displayName = names.get(p.id) ?? p.handle;
+        return (
+          <div key={p.id} className={`person${p.enabled ? '' : ' person--off'}${isFocused ? ' person--focused' : ''}`}>
+            <AvatarChip avatar={p.avatar} size={30} title={displayName} />
+            <div
+              className="person__main"
+              title="Click to show/hide on the calendar"
+              onClick={() => dispatch({ type: 'togglePerson', id: p.id, enabled: !p.enabled })}
+            >
+              <span className="person__handle">{displayName}</span>
+              <span className="person__meta">
+                {p.schedule
+                  ? `${new Set(p.schedule.sections.map((s) => s.courseCode || s.title)).size} courses`
+                  : 'no schedule yet'}
+              </span>
+            </div>
             <button
               type="button"
-              className="btn btn--ghost btn--icon"
-              title="Replace schedule (new .xlsx)"
+              className={`btn btn--ghost btn--icon person__focus${isFocused ? ' person__focus--active' : ''}`}
+              title={isFocused ? 'Show everyone' : `Focus ${displayName} only`}
+              aria-label={isFocused ? 'Show everyone' : `Focus ${displayName} only`}
+              aria-pressed={isFocused}
               onClick={() => {
-                setReuploadFor(p.id);
-                reuploadRef.current?.click();
+                if (isFocused) dispatch({ type: 'enableAll' });
+                else dispatch({ type: 'soloPerson', id: p.id });
               }}
             >
-              ⟳
+              <span className="person__focus-mark" aria-hidden="true" />
             </button>
-            <button
-              type="button"
-              className="btn btn--ghost btn--icon btn--danger"
-              title="Remove from group"
-              onClick={() => {
-                if (window.confirm(`Remove ${p.handle} and their schedule from this calendar?`)) {
-                  dispatch({ type: 'removePerson', id: p.id });
-                }
-              }}
-            >
-              ×
-            </button>
+            <div className="person__actions">
+              <button type="button" className="btn btn--ghost btn--icon" title="Edit handle / avatar" onClick={() => onEdit(p)}>
+                ✎
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost btn--icon"
+                title="Replace schedule (new .xlsx)"
+                onClick={() => {
+                  setReuploadFor(p.id);
+                  reuploadRef.current?.click();
+                }}
+              >
+                ⟳
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost btn--icon btn--danger"
+                title="Remove from group"
+                onClick={() => {
+                  if (window.confirm(`Remove ${p.handle} and their schedule from this calendar?`)) {
+                    dispatch({ type: 'removePerson', id: p.id });
+                  }
+                }}
+              >
+                ×
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       <input
         ref={reuploadRef}
         type="file"

@@ -414,6 +414,11 @@ input[type='text'] {
   background: rgba(148, 163, 196, 0.07);
 }
 
+.person--focused {
+  background: rgba(255, 209, 102, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 209, 102, 0.24);
+}
+
 .person--off {
   opacity: 0.42;
 }
@@ -450,6 +455,50 @@ input[type='text'] {
 
 .person:hover .person__actions {
   opacity: 1;
+}
+
+.person--focused .person__actions {
+  opacity: 1;
+}
+
+.person__focus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 26px;
+}
+
+.person__focus-mark {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  position: relative;
+}
+
+.person__focus-mark::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+}
+
+.person__focus--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.person__focus--active .person__focus-mark::after {
+  opacity: 1;
+}
+
+.person__focus--active:hover {
+  color: var(--accent-ink);
+  border-color: var(--accent);
 }
 
 /* ---------- avatar chips ---------- */
