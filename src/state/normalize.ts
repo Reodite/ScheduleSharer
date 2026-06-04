@@ -93,5 +93,11 @@ export function normalizeGroup(raw: unknown): GroupState {
   const people = Array.isArray(g?.people)
     ? (g.people.map(normalizePerson).filter(Boolean) as Person[])
     : [];
-  return { schemaVersion: SCHEMA_VERSION, people };
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    // pre-v4 data has no group identity — empty id routes into the active schedule
+    groupId: typeof g?.groupId === 'string' ? g.groupId : '',
+    name: typeof g?.name === 'string' ? g.name : '',
+    people,
+  };
 }

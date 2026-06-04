@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DayCode, Person, Schedule } from '../src/types';
 import { useStore } from './state/store';
+import { importIntoLibrary } from './state/library';
 import { decodeShareHash, ShareDecodeError } from './state/shareLink';
 import { deriveTerms, defaultTermKey } from './features/terms';
 import { buildCalendar, expandBlocks } from './calendar/buildCalendar';
@@ -15,6 +16,7 @@ import { DropZone } from './ui/DropZone';
 import { ShareBar } from './ui/ShareBar';
 import { ProfileModal } from './ui/ProfileModal';
 import type { ProfileDraft } from './ui/ProfileModal';
+import { ScheduleManager } from './ui/ScheduleManager';
 import { useToast } from './ui/Toast';
 import { dayCodeOf, minutesToFullLabel, toISODate } from './util/time';
 
@@ -28,12 +30,13 @@ function useNow(): Date {
 }
 
 export default function App() {
-  const { state, dispatch, bootImport } = useStore();
+  const { library, group, dispatch, bootImport } = useStore();
   const toast = useToast();
   const now = useNow();
 
   const [termKey, setTermKey] = useState<string | null>(null);
   const [showFree, setShowFree] = useState(true);
+  const [showManager, setShowManager] = useState(false);
   const [draft, setDraft] = useState<ProfileDraft | null>(null);
   const [detail, setDetail] = useState<MergedBlock | null>(null);
   const [mobileDay, setMobileDay] = useState<DayCode>(() => {
@@ -47,6 +50,10 @@ export default function App() {
     if (!bootImport || bootToastShown.current) return;
     bootToastShown.current = true;
     if (bootImport.error) toast(bootImport.error, 'error');
+    else if (bootImport.outcome === 'full')
+      toast('Schedule cache is full (5/5) — delete one from the schedule menu, then reopen the link.', 'error');
+    else if (bootImport.outcome === 'added')
+      toast(`Saved new schedule "${bootImport.groupName || 'Untitled'}" from the link 🎉`);
     else if (bootImport.importedPeople.length > 0)
       toast(`Added from share link: ${bootImport.importedPeople.join(', ')} 🎉`);
     else toast('Share link opened — everyone here was already up to date');
@@ -54,37 +61,45 @@ export default function App() {
   }, []);
 
   // Opening a new share link in an already-open tab only changes the hash —
-  // no reload, so boot() never sees it. Merge on hashchange instead.
+  // no reload, so boot() never sees it. Route it on hashchange instead.
   useEffect(() => {
     function onHashChange() {
       try {
         const incoming = decodeShareHash(window.location.hash);
-        if (incoming) {
-          dispatch({ type: 'mergeIncoming', incoming });
-          toast('Share link merged into your calendar');
+        if (!incoming) return;
+        const { outcome } = importIntoLibrary(library, incoming);
+        if (outcome === 'full') {
+          toast('Schedule cache is full (5/5) — delete one from the schedule menu, then reopen the link.', 'error');
+          return;
         }
+        dispatch({ type: 'importIncoming', incoming });
+        toast(
+          outcome === 'added'
+            ? `Saved new schedule "${incoming.name || 'Untitled'}" from the link 🎉`
+            : 'Share link merged into your calendar',
+        );
       } catch (e) {
         if (e instanceof ShareDecodeError) toast(e.message, 'error');
       }
     }
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, [dispatch, toast]);
+  }, [library, dispatch, toast]);
 
-  const terms = useMemo(() => deriveTerms(state.people), [state.people]);
+  const terms = useMemo(() => deriveTerms(group.people), [group.people]);
   const selectedTermKey = termKey && terms.some((t) => t.key === termKey)
     ? termKey
     : defaultTermKey(terms, toISODate(now));
   const term = terms.find((t) => t.key === selectedTermKey) ?? null;
 
-  const model = useMemo(() => buildCalendar(state.people, term), [state.people, term]);
+  const model = useMemo(() => buildCalendar(group.people, term), [group.people, term]);
 
   const freeBands = useMemo(() => {
     if (!showFree) return [];
-    const enabled = state.people.filter((p) => p.enabled && p.schedule);
+    const enabled = group.people.filter((p) => p.enabled && p.schedule);
     if (enabled.length === 0) return [];
     return commonFreeIntervals(expandBlocks(enabled, term), model.days);
-  }, [showFree, state.people, term, model.days]);
+  }, [showFree, group.people, term, model.days]);
 
   const termIsLive = !!term && toISODate(now) >= term.start && toISODate(now) <= term.end;
 
@@ -112,7 +127,7 @@ export default function App() {
     setDraft({ schedule });
   }
 
-  const empty = state.people.length === 0;
+  const empty = group.people.length === 0;
 
   return (
     <>
@@ -121,8 +136,16 @@ export default function App() {
           <span className="wordmark__name">
             Schedule<em>Sharer</em>
           </span>
-          <span className="wordmark__tag">one grid · whole crew</span>
         </div>
+        <button
+          type="button"
+          className="btn sched-btn"
+          title="Switch, rename, or delete cached schedules"
+          onClick={() => setShowManager(true)}
+        >
+          {group.name || 'Untitled schedule'}
+          <span className="sched-btn__caret">▾</span>
+        </button>
         <div className="topbar__spacer" />
         <TermSwitcher terms={terms} selected={selectedTermKey} onSelect={setTermKey} />
         <ShareBar />
@@ -174,7 +197,7 @@ export default function App() {
                 </div>
               )}
             </div>
-            {termIsLive && <NowPanel people={state.people} now={now} />}
+            {termIsLive && <NowPanel people={group.people} now={now} />}
           </aside>
 
           <main className="cal-wrap">
@@ -197,10 +220,11 @@ export default function App() {
         </div>
       )}
 
+      {showManager && <ScheduleManager onClose={() => setShowManager(false)} />}
       {draft && (
         <ProfileModal
           draft={draft}
-          takenHandles={state.people.filter((p) => p.id !== draft.person?.id).map((p) => p.handle)}
+          takenHandles={group.people.filter((p) => p.id !== draft.person?.id).map((p) => p.handle)}
           onSave={savePerson}
           onCancel={() => setDraft(null)}
         />

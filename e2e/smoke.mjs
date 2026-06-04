@@ -38,6 +38,7 @@ const browser = await chromium.launch({ channel: 'msedge', headless: true });
 const ctxA = await browser.newContext({ viewport: { width: 1440, height: 920 } });
 const pageA = await ctxA.newPage();
 pageA.on('pageerror', (e) => { console.log('PAGEERROR', e.message); failures++; });
+pageA.on('dialog', (d) => d.accept());
 await pageA.goto(BASE);
 
 check('hero shows on first visit', await pageA.locator('.hero').isVisible());
@@ -106,6 +107,54 @@ const hash2 = await pageB.evaluate(() => location.hash);
 await pageA.goto(BASE + hash2);
 await pageA.waitForSelector('.calendar');
 check('round trip back to A: three people', await pageA.locator('.person').count() === 3);
+
+// ---------- schedule library ----------
+check('schedule button shows default name', (await pageA.locator('.sched-btn').innerText()).includes('My schedule'));
+
+// B's link had the same groupId -> updated in place, NOT cached as a duplicate
+await pageA.click('.sched-btn');
+await pageA.waitForSelector('.modal');
+check('same-id link did not duplicate the schedule', (await pageA.locator('.sched-row').count()) === 1);
+check('manager lists the crew', (await pageA.locator('.sched-row__names').innerText()).includes('max'));
+
+// rename
+await pageA.click('.sched-row__actions button[title="Rename"]');
+await pageA.fill('.sched-row__rename', 'spring crew');
+await pageA.keyboard.press('Enter');
+check('rename sticks in the list', (await pageA.locator('.sched-row__name').innerText()).includes('spring crew'));
+await pageA.click('button:has-text("Close")');
+check('schedule button shows new name', (await pageA.locator('.sched-btn').innerText()).includes('spring crew'));
+await pageA.screenshot({ path: 'e2e/shots/08-manager.png' });
+
+// renamed title travels with the link
+await pageA.click('button:has-text("Copy share link")');
+await pageA.waitForFunction(() => location.hash.startsWith('#d='));
+const hash3 = await pageA.evaluate(() => location.hash);
+const ctxC = await browser.newContext({ viewport: { width: 1440, height: 920 } });
+const pageC = await ctxC.newPage();
+await pageC.goto(BASE + hash3);
+await pageC.waitForSelector('.calendar');
+check('link name arrives on a fresh device', (await pageC.locator('.sched-btn').innerText()).includes('spring crew'));
+// fresh device: link cached as a NEW schedule alongside its empty default
+await pageC.click('.sched-btn');
+await pageC.waitForSelector('.modal');
+check('fresh device caches link as new schedule', (await pageC.locator('.sched-row').count()) === 2);
+await pageC.click('button:has-text("Close")');
+
+// create, switch, delete
+await pageA.click('.sched-btn');
+await pageA.click('button:has-text("+ New schedule")');
+check('new schedule starts empty (hero)', await pageA.locator('.hero').isVisible());
+check('button shows the new schedule', (await pageA.locator('.sched-btn').innerText()).includes('Schedule 2'));
+await pageA.click('.sched-btn');
+check('manager lists two schedules', (await pageA.locator('.sched-row').count()) === 2);
+await pageA.click('.sched-row:has-text("spring crew") .sched-row__main');
+await pageA.waitForSelector('.calendar');
+check('switching back restores the calendar', await pageA.locator('.cal-block').count() > 0);
+await pageA.click('.sched-btn');
+await pageA.click('.sched-row:has-text("Schedule 2") button[title="Delete from this device"]');
+check('deleted schedule is gone', (await pageA.locator('.sched-row').count()) === 1);
+await pageA.click('button:has-text("Close")');
 
 // mobile layout
 const ctxM = await browser.newContext({ viewport: { width: 390, height: 844 } });

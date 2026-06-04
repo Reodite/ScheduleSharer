@@ -11,19 +11,19 @@ interface Props {
 }
 
 export function PeoplePanel({ onEdit }: Props) {
-  const { state, dispatch } = useStore();
+  const { group, dispatch } = useStore();
   const toast = useToast();
   const reuploadRef = useRef<HTMLInputElement>(null);
   const [reuploadFor, setReuploadFor] = useState<string | null>(null);
 
-  if (state.people.length === 0) return null;
+  if (group.people.length === 0) return null;
 
-  const names = displayHandles(state.people);
-  const allOn = state.people.every((p) => p.enabled);
+  const names = displayHandles(group.people);
+  const allOn = group.people.every((p) => p.enabled);
 
   async function handleReupload(file: File | undefined) {
     if (!file || !reuploadFor) return;
-    const person = state.people.find((p) => p.id === reuploadFor);
+    const person = group.people.find((p) => p.id === reuploadFor);
     try {
       const schedule = parseScheduleXlsx(await file.arrayBuffer(), file.name);
       dispatch({ type: 'replaceSchedule', id: reuploadFor, schedule });
@@ -38,14 +38,14 @@ export function PeoplePanel({ onEdit }: Props) {
   return (
     <div className="panel">
       <h3 className="panel__title">
-        Crew · {state.people.length}
+        Crew · {group.people.length}
         {!allOn && (
           <button type="button" className="btn btn--ghost btn--icon" onClick={() => dispatch({ type: 'enableAll' })}>
             show all
           </button>
         )}
       </h3>
-      {state.people.map((p) => (
+      {group.people.map((p) => (
         <div key={p.id} className={`person${p.enabled ? '' : ' person--off'}`}>
           <AvatarChip avatar={p.avatar} size={30} title={names.get(p.id)} />
           <div

@@ -100,6 +100,130 @@ input[type='text'] {
   flex: 1;
 }
 
+/* ---------- schedule picker ---------- */
+
+.sched-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sched-btn__caret {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.sched-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.sched-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  padding: 4px 6px 4px 0;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.sched-row:hover {
+  border-color: var(--line-strong);
+  background: rgba(148, 163, 196, 0.05);
+}
+
+.sched-row--active {
+  border-color: var(--accent);
+}
+
+.sched-row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.sched-row__name {
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sched-row__badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.sched-row__crew {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sched-row__crew .chip {
+  margin-right: -4px;
+  box-shadow: 0 0 0 1.5px var(--panel);
+}
+
+.sched-row__names {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-dim);
+  margin-left: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sched-row__empty {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.sched-row__rename {
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 4px 8px;
+  outline: none;
+  width: 100%;
+}
+
+.sched-row__actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
 /* ---------- buttons ---------- */
 
 .btn {

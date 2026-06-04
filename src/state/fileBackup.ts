@@ -10,9 +10,13 @@ import { normalizeGroup } from './normalize';
 export function exportBackup(state: GroupState): void {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const slug = (state.name || 'schedule')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `schedulesharer-${stamp}.json`;
+  a.download = `schedulesharer-${slug || 'schedule'}-${stamp}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
 }

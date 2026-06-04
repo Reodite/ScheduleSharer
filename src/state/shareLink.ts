@@ -42,7 +42,7 @@ type PackedAvatar = [string, string, string]; // kind, emoji|initials, color
 
 type PackedPerson = [string, string, PackedAvatar, string, number[] | null]; // ..., section indices
 
-type PackedGroup = [number, PackedSection[], PackedPerson[]];
+type PackedGroup = [number, string, string, PackedSection[], PackedPerson[]]; // version, groupId, name, ...
 
 function packMeeting(m: MeetingPattern): PackedMeeting {
   return [
@@ -139,7 +139,7 @@ export function encodeShareHash(state: GroupState): string {
     return [p.id, p.handle, packAvatar(p.avatar, p.handle), p.updatedAt, indices];
   });
 
-  const packed: PackedGroup = [SCHEMA_VERSION, table, people];
+  const packed: PackedGroup = [SCHEMA_VERSION, state.groupId, state.name, table, people];
   return HASH_KEY + compressToEncodedURIComponent(JSON.stringify(packed));
 }
 
@@ -161,8 +161,8 @@ export function decodeShareHash(hash: string): GroupState | null {
   } catch {
     throw new ShareDecodeError('This share link is damaged or truncated — ask for a fresh one.');
   }
-  const [version, table, people] = packed;
-  if (typeof version !== 'number' || !Array.isArray(people)) {
+  const [version, groupId, name, table, people] = packed;
+  if (typeof version !== 'number') {
     throw new ShareDecodeError('This share link is damaged or truncated — ask for a fresh one.');
   }
   if (version > SCHEMA_VERSION) {
@@ -171,10 +171,15 @@ export function decodeShareHash(hash: string): GroupState | null {
   if (version < SCHEMA_VERSION) {
     throw new ShareDecodeError('This link is from an older version — ask your friend to copy a fresh one.');
   }
+  if (typeof groupId !== 'string' || typeof name !== 'string' || !Array.isArray(people)) {
+    throw new ShareDecodeError('This share link is damaged or truncated — ask for a fresh one.');
+  }
 
   const sections = table.map(unpackSection);
   return {
     schemaVersion: SCHEMA_VERSION,
+    groupId,
+    name,
     people: people.map((p) => {
       const [id, handle, avatar, updatedAt, indices] = p;
       const schedule: Schedule | null = indices

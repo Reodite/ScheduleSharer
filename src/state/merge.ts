@@ -31,6 +31,8 @@ function pickNewest(local: Person, incoming: Person): Person {
  * Merge an incoming GroupState (from a share link or JSON import) into local state.
  * Union of people: match by id first, then by normalized handle; newest updatedAt
  * wins; unmatched incoming people are appended. Never drops a schedule.
+ * Keeps the local groupId; adopts the incoming name when it carries one
+ * (a friend's rename propagates with their link).
  */
 export function mergeGroups(local: GroupState, incoming: GroupState): GroupState {
   const people: Person[] = [...local.people];
@@ -48,7 +50,12 @@ export function mergeGroups(local: GroupState, incoming: GroupState): GroupState
     }
   }
 
-  return { schemaVersion: SCHEMA_VERSION, people };
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    groupId: local.groupId,
+    name: incoming.name || local.name,
+    people,
+  };
 }
 
 /**

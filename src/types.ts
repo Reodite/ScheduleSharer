@@ -1,4 +1,7 @@
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
+
+/** hard cap on locally cached schedules */
+export const MAX_GROUPS = 5;
 
 export type DayCode = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 
@@ -67,9 +70,23 @@ export interface Person {
 
 export interface GroupState {
   schemaVersion: number;
+  /**
+   * Stable identity of this shared calendar — travels in share links.
+   * A link with a known groupId updates that cached schedule; an unknown
+   * groupId caches a new one.
+   */
+  groupId: string;
+  /** user-editable display name; travels in links (newest wins on update) */
+  name: string;
   people: Person[];
 }
 
-export function emptyGroup(): GroupState {
-  return { schemaVersion: SCHEMA_VERSION, people: [] };
+/** All locally cached schedules plus which one is on screen. */
+export interface Library {
+  activeId: string;
+  groups: GroupState[];
+}
+
+export function emptyGroup(name = ''): GroupState {
+  return { schemaVersion: SCHEMA_VERSION, groupId: crypto.randomUUID(), name, people: [] };
 }
