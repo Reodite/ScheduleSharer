@@ -29,6 +29,7 @@ type PackedMeeting = [
 ];
 
 type PackedSection = [
+  string, // courseCode
   string, // title
   string, // component
   string[], // instructors
@@ -73,12 +74,21 @@ function unpackMeeting(p: PackedMeeting): MeetingPattern {
 }
 
 function packSection(s: Section): PackedSection {
-  return [s.title, s.component, s.instructors, s.termStart ?? '', s.termEnd ?? '', s.meetings.map(packMeeting)];
+  return [
+    s.courseCode,
+    s.title,
+    s.component,
+    s.instructors,
+    s.termStart ?? '',
+    s.termEnd ?? '',
+    s.meetings.map(packMeeting),
+  ];
 }
 
 function unpackSection(p: PackedSection): Section {
-  const [title, component, instructors, termStart, termEnd, meetings] = p;
+  const [courseCode, title, component, instructors, termStart, termEnd, meetings] = p;
   const base = {
+    courseCode,
     title,
     component,
     instructors,

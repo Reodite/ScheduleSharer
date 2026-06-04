@@ -51,6 +51,7 @@ function normalizeSection(raw: unknown): Section | null {
   }
 
   const base = {
+    courseCode: typeof s.courseCode === 'string' ? s.courseCode : '',
     // v1 stored the title under courseTitle
     title: typeof s.title === 'string' ? s.title : typeof s.courseTitle === 'string' ? s.courseTitle : '',
     component: typeof s.component === 'string' ? s.component : '',

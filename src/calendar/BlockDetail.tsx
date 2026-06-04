@@ -1,5 +1,6 @@
 import type { MergedBlock } from './buildCalendar';
 import { courseColor } from './colors';
+import { displayCode } from './Block';
 import { AvatarChip } from '../avatar/AvatarChip';
 import { minutesToFullLabel } from '../util/time';
 
@@ -15,14 +16,16 @@ function fmtDate(iso: string): string {
 
 export function BlockDetail({ block, onClose }: Props) {
   const s = block.section;
-  const color = courseColor(s.title);
+  const color = courseColor(s);
 
   return (
     <div className="overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="detail__head">
           <span className="detail__swatch" style={{ background: color }} />
-          <h2 className="detail__title">{s.title}</h2>
+          <h2 className="detail__title">
+            {s.courseCode ? `${displayCode(s)} — ${s.title}` : s.title}
+          </h2>
         </div>
         <div className="detail__sub">
           {s.component}

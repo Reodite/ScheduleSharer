@@ -44,10 +44,11 @@ function cell(row: SheetRow, col: string | undefined): string {
   return col ? (row.cells[col] ?? '').trim() : '';
 }
 
-/** 'CPSC_V 221 - Basic Algorithms and Data Structures' -> title after ' - ' */
-function titleOf(courseCell: string): string {
+/** 'CPSC_V 221 - Basic Algorithms and Data Structures' -> [code, title] */
+function splitCourse(courseCell: string): [string, string] {
   const idx = courseCell.indexOf(' - ');
-  return idx === -1 ? courseCell : courseCell.slice(idx + 3).trim();
+  if (idx === -1) return ['', courseCell];
+  return [courseCell.slice(0, idx).trim(), courseCell.slice(idx + 3).trim()];
 }
 
 /** Excel serial cell -> ISO date, if the cell holds a number */
@@ -90,8 +91,10 @@ function parseRow(row: SheetRow, cols: Partial<Record<HeaderKey, string>>): Sect
     meetings.push(p.pattern);
   }
 
+  const [courseCode, title] = splitCourse(courseRaw);
   const base = {
-    title: titleOf(courseRaw),
+    courseCode,
+    title,
     component: cell(row, cols.component),
     instructors,
     termStart,

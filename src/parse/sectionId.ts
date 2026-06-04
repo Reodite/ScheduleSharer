@@ -15,6 +15,6 @@ function meetingSignature(m: MeetingPattern): string {
  * per-meeting dates) without splitting into two blocks.
  */
 export function computeSectionId(s: Omit<Section, 'id'>): string {
-  const sig = [s.title, s.component, ...s.meetings.map(meetingSignature).sort()].join('|');
+  const sig = [s.courseCode, s.title, s.component, ...s.meetings.map(meetingSignature).sort()].join('|');
   return fnv1a(sig);
 }

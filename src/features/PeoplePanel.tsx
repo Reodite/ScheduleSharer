@@ -56,7 +56,7 @@ export function PeoplePanel({ onEdit }: Props) {
             <span className="person__handle">{names.get(p.id)}</span>
             <span className="person__meta">
               {p.schedule
-                ? `${new Set(p.schedule.sections.map((s) => s.title)).size} courses`
+                ? `${new Set(p.schedule.sections.map((s) => s.courseCode || s.title)).size} courses`
                 : 'no schedule yet'}
             </span>
           </div>

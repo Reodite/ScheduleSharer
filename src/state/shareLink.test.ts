@@ -48,6 +48,7 @@ describe('share link round-trip', () => {
     );
     // meetings + section dates survive intact
     const cogs = alice.schedule!.sections.find((s) => s.title === 'Research Methods in Cognitive Systems')!;
+    expect(cogs.courseCode).toBe('COGS_V 303');
     expect(cogs.meetings).toHaveLength(1);
     expect(cogs.meetings[0]).toMatchObject({ startMin: 570, endMin: 660, room: 'D322', floor: '3' });
     expect(cogs.termStart).toBe('2027-01-06');
@@ -142,11 +143,12 @@ describe('normalizeGroup (v1 data migration)', () => {
     };
     const migrated = normalizeGroup(v1);
     const section = migrated.people[0].schedule!.sections[0];
+    expect(section.courseCode).toBe('COGS_V 303');
     expect(section.title).toBe('Research Methods in Cognitive Systems');
     expect(section.meetings).toHaveLength(1); // split deduped
     expect(section.termStart).toBe('2027-01-06');
     expect(section.termEnd).toBe('2027-04-12');
-    expect((section as unknown as Record<string, unknown>).courseCode).toBeUndefined();
+    expect((section as unknown as Record<string, unknown>).sectionLabel).toBeUndefined();
 
     // migrated id must equal a fresh parse's id so blocks still merge
     const fresh = parseScheduleXlsx(loadExample(SPRING));

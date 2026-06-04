@@ -16,6 +16,11 @@ export function componentAbbrev(component: string): string {
   return COMPONENT_ABBREV[component] ?? component.slice(0, 3).toLowerCase();
 }
 
+/** 'CPSC_V 221' -> 'CPSC 221'; falls back to the title for code-less data */
+export function displayCode(section: { courseCode: string; title: string }): string {
+  return section.courseCode ? section.courseCode.replace(/_V(?=\s)/, '') : section.title;
+}
+
 interface Props {
   block: MergedBlock;
   top: number;
@@ -24,7 +29,7 @@ interface Props {
 }
 
 export function Block({ block, top, height, onClick }: Props) {
-  const color = courseColor(block.section.title);
+  const color = courseColor(block.section);
   const size = height < 42 ? 'xs' : height < 62 ? 'sm' : 'lg';
   const gapPct = 100 / block.cols;
 
@@ -47,11 +52,11 @@ export function Block({ block, top, height, onClick }: Props) {
       className="cal-block"
       style={style}
       data-size={size}
-      title={`${block.section.title} (${block.section.component}) · ${rangeLabel(block.startMin, block.endMin)}${loc ? ` · ${loc}` : ''} · ${block.people.map((p) => p.handle).join(', ')}`}
+      title={`${displayCode(block.section)} — ${block.section.title} (${block.section.component}) · ${rangeLabel(block.startMin, block.endMin)}${loc ? ` · ${loc}` : ''} · ${block.people.map((p) => p.handle).join(', ')}`}
       onClick={() => onClick(block)}
     >
       <span className="cal-block__code">
-        {block.section.title} <small>{componentAbbrev(block.section.component)}</small>
+        {displayCode(block.section)} <small>{componentAbbrev(block.section.component)}</small>
       </span>
       <span className="cal-block__meta">{rangeLabel(block.startMin, block.endMin)}</span>
       {loc && <span className="cal-block__meta cal-block__meta--loc">{loc}</span>}

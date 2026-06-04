@@ -20,10 +20,12 @@ describe('parseScheduleXlsx — Spring 2027 example', () => {
     expect(titles).toContain('Applied Machine Learning|Discussion');
   });
 
-  it('keeps only the title from the course cell', () => {
+  it('splits course code and title, with no section suffix', () => {
     const cpsc = schedule.sections.find(
       (s) => s.title === 'Basic Algorithms and Data Structures' && s.component === 'Lecture',
     )!;
+    expect(cpsc.courseCode).toBe('CPSC_V 221');
+    expect(cpsc.courseCode).not.toMatch(/-/); // '-L2A' style suffixes are dropped
     expect(cpsc.title).not.toMatch(/CPSC/);
   });
 

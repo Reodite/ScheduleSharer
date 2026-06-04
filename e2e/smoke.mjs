@@ -52,18 +52,18 @@ await addPerson(pageA, SPRING, 'alex');
 check('two people in crew panel', await pageA.locator('.person').count() === 2);
 check('term switcher shows both terms', await pageA.locator('.terms__opt').count() === 2);
 
-// default term (June 2026 -> upcoming Fall 2026); check Fall blocks (PHIL is max's)
-check('fall term shows Symbolic Logic', await pageA.locator('.cal-block:has-text("Symbolic Logic")').count() > 0);
+// default term (June 2026 -> upcoming Fall 2026); check Fall blocks (PHIL 222 is max's)
+check('fall term shows PHIL 222', await pageA.locator('.cal-block:has-text("PHIL 222")').count() > 0);
 await pageA.screenshot({ path: 'e2e/shots/02-fall.png' });
 
 await pageA.click('.terms__opt:has-text("Spring 2027")');
-check('spring term shows Research Methods', await pageA.locator('.cal-block:has-text("Research Methods")').count() > 0);
-check('fall course absent in spring', await pageA.locator('.cal-block:has-text("Symbolic Logic")').count() === 0);
+check('spring term shows COGS 303', await pageA.locator('.cal-block:has-text("COGS 303")').count() > 0);
+check('fall course absent in spring', await pageA.locator('.cal-block:has-text("PHIL 222")').count() === 0);
 check('free-time bands render', await pageA.locator('.free-band').count() > 0);
 await pageA.screenshot({ path: 'e2e/shots/03-spring.png' });
 
 // block detail popover
-await pageA.click('.cal-block:has-text("Research Methods")');
+await pageA.click('.cal-block:has-text("COGS 303")');
 check('detail shows course title', await pageA.locator('.detail__title:has-text("Research Methods")').isVisible());
 check('detail lists instructor', await pageA.locator('.detail__row:has-text("Kelsey Allen")').count() > 0);
 check('detail shows ONE weekly meets line', (await pageA.locator('.detail__row .mono').count()) === 1);
@@ -94,7 +94,7 @@ check('link import toast fires', await pageB.locator('.toast').first().isVisible
 // merged block: B uploads the SAME spring file as casey -> one block, two chips
 await pageB.click('.terms__opt:has-text("Spring 2027")');
 await addPerson(pageB, SPRING, 'casey', '🐼');
-const cogsBlocks = pageB.locator('.cal-block:has-text("Research Methods")');
+const cogsBlocks = pageB.locator('.cal-block:has-text("COGS 303")');
 check('same section stays ONE merged block', (await cogsBlocks.count()) === 2); // Mon + Wed instances
 check('merged block shows two avatar chips', (await cogsBlocks.first().locator('.chip').count()) === 2);
 await pageB.screenshot({ path: 'e2e/shots/05-merged.png' });

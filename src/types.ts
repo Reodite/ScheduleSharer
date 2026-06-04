@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export type DayCode = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 
@@ -21,6 +21,7 @@ export interface MeetingPattern {
 export interface Section {
   /** hash of section identity — the cross-person merge key */
   id: string;
+  courseCode: string; // 'CPSC_V 221' (specific section suffixes like '-L2A' are dropped)
   title: string; // 'Basic Algorithms and Data Structures'
   component: string; // 'Lecture' | 'Laboratory' | 'Discussion' | 'Seminar' | ...
   instructors: string[];

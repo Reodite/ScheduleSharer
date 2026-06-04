@@ -9,9 +9,10 @@ interface Props {
   now: Date;
 }
 
-/** course titles can be long — clip for the one-line status row */
-function shortTitle(title: string): string {
-  return title.length > 26 ? `${title.slice(0, 24)}…` : title;
+/** prefer the compact code; clip a code-less title for the one-line row */
+function shortLabel(section: { courseCode: string; title: string }): string {
+  if (section.courseCode) return section.courseCode.replace(/_V(?=\s)/, '');
+  return section.title.length > 26 ? `${section.title.slice(0, 24)}…` : section.title;
 }
 
 export function NowPanel({ people, now }: Props) {
@@ -36,14 +37,14 @@ export function NowPanel({ people, now }: Props) {
             <span className="now-row__handle">{names.get(person.id)}</span>
             {current ? (
               <span className="now-row__status now-row__status--busy">
-                {shortTitle(current.section.title)}
+                {shortLabel(current.section)}
                 {current.pattern.buildingCode ? ` · ${current.pattern.buildingCode} ${current.pattern.room ?? ''}` : ''}
                 {` · til ${minutesToFullLabel(current.pattern.endMin)}`}
               </span>
             ) : (
               <span className="now-row__status now-row__status--free">
                 free
-                {next ? ` · ${shortTitle(next.section.title)} at ${minutesToFullLabel(next.pattern.startMin)}` : ' all day'}
+                {next ? ` · ${shortLabel(next.section)} at ${minutesToFullLabel(next.pattern.startMin)}` : ' all day'}
               </span>
             )}
           </div>

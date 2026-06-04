@@ -35,7 +35,7 @@ export function ProfileModal({ draft, takenHandles, onSave, onCancel }: Props) {
 
   const sectionCount = (editing ? editing.schedule?.sections.length : draft.schedule?.sections.length) ?? 0;
   const courseCount = new Set(
-    (editing ? editing.schedule?.sections : draft.schedule?.sections)?.map((s) => s.title) ?? [],
+    (editing ? editing.schedule?.sections : draft.schedule?.sections)?.map((s) => s.courseCode || s.title) ?? [],
   ).size;
 
   function save() {
