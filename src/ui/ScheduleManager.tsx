@@ -30,6 +30,7 @@ export function ScheduleManager({ onClose }: Props) {
 
         {library.groups.map((g) => {
           const active = g.groupId === library.activeId;
+          const onlySchedule = library.groups.length === 1;
           return (
             <div key={g.groupId} className={`sched-row${active ? ' sched-row--active' : ''}`}>
               <button
@@ -100,6 +101,7 @@ export function ScheduleManager({ onClose }: Props) {
                       )
                     ) {
                       dispatch({ type: 'deleteGroup', groupId: g.groupId });
+                      if (onlySchedule) onClose();
                     }
                   }}
                 >
