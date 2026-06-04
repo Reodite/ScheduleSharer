@@ -9,3 +9,12 @@ desktop.ini
 # Editor/IDE
 .vscode/
 .idea/
+
+# Build
+node_modules/
+dist/
+*.local
+*.tsbuildinfo
+
+# E2E artifacts
+e2e/shots/
