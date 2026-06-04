@@ -1,5 +1,6 @@
 import type { GroupState } from '../types';
 import { SCHEMA_VERSION } from '../types';
+import { normalizeGroup } from './normalize';
 
 /**
  * JSON file export/import — the full-fidelity sharing path. Unlike share
@@ -37,5 +38,6 @@ export function parseBackup(text: string): GroupState {
       throw new BackupParseError('That file is missing person data.');
     }
   }
-  return state;
+  // migrates v1 exports (course codes, per-meeting dates) to the current shape
+  return normalizeGroup(state);
 }

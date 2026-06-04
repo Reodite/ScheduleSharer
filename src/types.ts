@@ -1,14 +1,10 @@
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export type DayCode = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 
 export const DAY_ORDER: DayCode[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export interface MeetingPattern {
-  /** ISO 'YYYY-MM-DD', inclusive */
-  startDate: string;
-  /** ISO 'YYYY-MM-DD', inclusive */
-  endDate: string;
   days: DayCode[];
   /** minutes since midnight, local wall-clock (570 = 9:30) */
   startMin: number;
@@ -25,15 +21,16 @@ export interface MeetingPattern {
 export interface Section {
   /** hash of section identity — the cross-person merge key */
   id: string;
-  courseCode: string; // 'CPSC_V 221'
-  courseTitle: string; // 'Basic Algorithms and Data Structures'
-  sectionCode: string; // 'L2A' | '201' | 'A_L07'
-  sectionLabel: string; // 'CPSC_V 221-L2A'
+  title: string; // 'Basic Algorithms and Data Structures'
   component: string; // 'Lecture' | 'Laboratory' | 'Discussion' | 'Seminar' | ...
-  status?: string;
-  credits?: number;
   instructors: string[];
-  gradingBasis?: string;
+  /**
+   * ISO date bounds of the section (outer range across its meeting patterns).
+   * The only date info we keep — drives term bucketing; per-meeting ranges
+   * (reading-break splits) are deliberately dropped to keep share links small.
+   */
+  termStart?: string;
+  termEnd?: string;
   meetings: MeetingPattern[];
 }
 

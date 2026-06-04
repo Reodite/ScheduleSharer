@@ -1,13 +1,16 @@
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
-import type { Avatar, GroupState, MeetingPattern, Person, Schedule, Section } from '../types';
+import type { Avatar, GroupState, MeetingPattern, Schedule, Section } from '../types';
 import { SCHEMA_VERSION } from '../types';
 import { computeSectionId } from '../parse/sectionId';
 
 /**
  * Share links carry the whole group, tuple-packed then lz-string compressed
- * into the URL hash (#d=...). Stripped from links: avatar images (downgraded
- * to initials), the local-only `enabled` flag, `raw` pattern text, and
- * section ids (regenerated on unpack).
+ * into the URL hash (#d=...). Size-cutting measures (v2):
+ *  - sections shared by multiple people are stored ONCE; each person just
+ *    lists indices into the group-wide section table
+ *  - no per-meeting date ranges (one termStart/termEnd pair per section)
+ *  - avatar images downgraded to initials; `enabled` and `raw` stripped;
+ *    section ids regenerated on unpack
  */
 
 const HASH_KEY = '#d=';
@@ -15,8 +18,6 @@ const HASH_KEY = '#d=';
 export const URL_WARN_LENGTH = 7000;
 
 type PackedMeeting = [
-  string, // startDate
-  string, // endDate
   string, // days joined ','
   number, // startMin
   number, // endMin
@@ -28,28 +29,22 @@ type PackedMeeting = [
 ];
 
 type PackedSection = [
-  string, // courseCode
-  string, // courseTitle
-  string, // sectionCode
-  string, // sectionLabel
+  string, // title
   string, // component
-  string, // status
-  number | null, // credits
   string[], // instructors
-  string, // gradingBasis
+  string, // termStart
+  string, // termEnd
   PackedMeeting[],
 ];
 
 type PackedAvatar = [string, string, string]; // kind, emoji|initials, color
 
-type PackedPerson = [string, string, PackedAvatar, string, PackedSection[] | null];
+type PackedPerson = [string, string, PackedAvatar, string, number[] | null]; // ..., section indices
 
-type PackedGroup = [number, PackedPerson[]];
+type PackedGroup = [number, PackedSection[], PackedPerson[]];
 
 function packMeeting(m: MeetingPattern): PackedMeeting {
   return [
-    m.startDate,
-    m.endDate,
     m.days.join(','),
     m.startMin,
     m.endMin,
@@ -62,10 +57,8 @@ function packMeeting(m: MeetingPattern): PackedMeeting {
 }
 
 function unpackMeeting(p: PackedMeeting): MeetingPattern {
-  const [startDate, endDate, days, startMin, endMin, campus, buildingName, buildingCode, floor, room] = p;
+  const [days, startMin, endMin, campus, buildingName, buildingCode, floor, room] = p;
   const m: MeetingPattern = {
-    startDate,
-    endDate,
     days: days ? (days.split(',') as MeetingPattern['days']) : [],
     startMin,
     endMin,
@@ -76,37 +69,21 @@ function unpackMeeting(p: PackedMeeting): MeetingPattern {
   if (buildingCode) m.buildingCode = buildingCode;
   if (floor) m.floor = floor;
   if (room) m.room = room;
-  m.raw = `${startDate} - ${endDate} | ${m.days.join(' ')}`;
   return m;
 }
 
 function packSection(s: Section): PackedSection {
-  return [
-    s.courseCode,
-    s.courseTitle,
-    s.sectionCode,
-    s.sectionLabel,
-    s.component,
-    s.status ?? '',
-    s.credits ?? null,
-    s.instructors,
-    s.gradingBasis ?? '',
-    s.meetings.map(packMeeting),
-  ];
+  return [s.title, s.component, s.instructors, s.termStart ?? '', s.termEnd ?? '', s.meetings.map(packMeeting)];
 }
 
 function unpackSection(p: PackedSection): Section {
-  const [courseCode, courseTitle, sectionCode, sectionLabel, component, status, credits, instructors, gradingBasis, meetings] = p;
+  const [title, component, instructors, termStart, termEnd, meetings] = p;
   const base = {
-    courseCode,
-    courseTitle,
-    sectionCode,
-    sectionLabel,
+    title,
     component,
-    status: status || undefined,
-    credits: credits ?? undefined,
     instructors,
-    gradingBasis: gradingBasis || undefined,
+    termStart: termStart || undefined,
+    termEnd: termEnd || undefined,
     meetings: meetings.map(unpackMeeting),
   };
   return { ...base, id: computeSectionId(base) };
@@ -131,26 +108,28 @@ function unpackAvatar(p: PackedAvatar): Avatar {
     : { kind: 'initials', initials: symbol, color };
 }
 
-function packPerson(p: Person): PackedPerson {
-  return [
-    p.id,
-    p.handle,
-    packAvatar(p.avatar, p.handle),
-    p.updatedAt,
-    p.schedule ? p.schedule.sections.map(packSection) : null,
-  ];
-}
-
-function unpackPerson(p: PackedPerson): Person {
-  const [id, handle, avatar, updatedAt, sections] = p;
-  const schedule: Schedule | null = sections
-    ? { sections: sections.map(unpackSection), importedAt: updatedAt }
-    : null;
-  return { id, handle, avatar: unpackAvatar(avatar), schedule, updatedAt, enabled: true };
-}
-
 export function encodeShareHash(state: GroupState): string {
-  const packed: PackedGroup = [SCHEMA_VERSION, state.people.map(packPerson)];
+  // Group-wide section table: identical sections (same id) stored once.
+  const table: PackedSection[] = [];
+  const indexById = new Map<string, number>();
+
+  const people: PackedPerson[] = state.people.map((p) => {
+    let indices: number[] | null = null;
+    if (p.schedule) {
+      indices = p.schedule.sections.map((s) => {
+        let idx = indexById.get(s.id);
+        if (idx === undefined) {
+          idx = table.length;
+          table.push(packSection(s));
+          indexById.set(s.id, idx);
+        }
+        return idx;
+      });
+    }
+    return [p.id, p.handle, packAvatar(p.avatar, p.handle), p.updatedAt, indices];
+  });
+
+  const packed: PackedGroup = [SCHEMA_VERSION, table, people];
   return HASH_KEY + compressToEncodedURIComponent(JSON.stringify(packed));
 }
 
@@ -172,12 +151,26 @@ export function decodeShareHash(hash: string): GroupState | null {
   } catch {
     throw new ShareDecodeError('This share link is damaged or truncated — ask for a fresh one.');
   }
-  const [version, people] = packed;
+  const [version, table, people] = packed;
   if (typeof version !== 'number' || !Array.isArray(people)) {
     throw new ShareDecodeError('This share link is damaged or truncated — ask for a fresh one.');
   }
   if (version > SCHEMA_VERSION) {
     throw new ShareDecodeError('This link was made with a newer version of ScheduleSharer — refresh the app.');
   }
-  return { schemaVersion: SCHEMA_VERSION, people: people.map(unpackPerson) };
+  if (version < SCHEMA_VERSION) {
+    throw new ShareDecodeError('This link is from an older version — ask your friend to copy a fresh one.');
+  }
+
+  const sections = table.map(unpackSection);
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    people: people.map((p) => {
+      const [id, handle, avatar, updatedAt, indices] = p;
+      const schedule: Schedule | null = indices
+        ? { sections: indices.map((i) => sections[i]).filter(Boolean), importedAt: updatedAt }
+        : null;
+      return { id, handle, avatar: unpackAvatar(avatar), schedule, updatedAt, enabled: true };
+    }),
+  };
 }

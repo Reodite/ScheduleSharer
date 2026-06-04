@@ -11,47 +11,49 @@ function loadExample(name: string): ArrayBuffer {
 describe('parseScheduleXlsx — Spring 2027 example', () => {
   const schedule = parseScheduleXlsx(loadExample('View_Student_Registration_Saved_Schedule.xlsx'), 'spring.xlsx');
 
-  it('extracts all section rows', () => {
-    const labels = schedule.sections.map((s) => s.sectionLabel);
-    expect(labels).toContain('COGS_V 303-201');
-    expect(labels).toContain('CPSC_V 221-201');
-    expect(labels).toContain('CPSC_V 221-L2A');
-    expect(labels).toContain('STAT_V 200-202');
-    expect(labels).toContain('CPSC_V 330-T2J');
+  it('extracts all section rows by title', () => {
+    const titles = schedule.sections.map((s) => `${s.title}|${s.component}`);
+    expect(titles).toContain('Research Methods in Cognitive Systems|Seminar');
+    expect(titles).toContain('Basic Algorithms and Data Structures|Lecture');
+    expect(titles).toContain('Basic Algorithms and Data Structures|Laboratory');
+    expect(titles).toContain('Elementary Statistics for Applications|Lecture');
+    expect(titles).toContain('Applied Machine Learning|Discussion');
   });
 
-  it('splits course code and title', () => {
-    const cpsc = schedule.sections.find((s) => s.sectionLabel === 'CPSC_V 221-201')!;
-    expect(cpsc.courseCode).toBe('CPSC_V 221');
-    expect(cpsc.courseTitle).toBe('Basic Algorithms and Data Structures');
-    expect(cpsc.sectionCode).toBe('201');
-    expect(cpsc.component).toBe('Lecture');
+  it('keeps only the title from the course cell', () => {
+    const cpsc = schedule.sections.find(
+      (s) => s.title === 'Basic Algorithms and Data Structures' && s.component === 'Lecture',
+    )!;
+    expect(cpsc.title).not.toMatch(/CPSC/);
   });
 
-  it('parses reading-break split into two meeting patterns', () => {
-    const cogs = schedule.sections.find((s) => s.sectionLabel === 'COGS_V 303-201')!;
-    expect(cogs.meetings).toHaveLength(2);
+  it('collapses a reading-break split into ONE weekly meeting with the outer date range', () => {
+    const cogs = schedule.sections.find((s) => s.title === 'Research Methods in Cognitive Systems')!;
+    expect(cogs.meetings).toHaveLength(1);
     expect(cogs.meetings[0]).toMatchObject({
-      startDate: '2027-01-06',
-      endDate: '2027-02-10',
       days: ['Mon', 'Wed'],
       startMin: 570,
       endMin: 660,
       buildingCode: 'BUCH',
       room: 'D322',
     });
-    expect(cogs.meetings[1].startDate).toBe('2027-02-22');
+    expect(cogs.termStart).toBe('2027-01-06');
+    expect(cogs.termEnd).toBe('2027-04-12');
   });
 
   it('handles missing instructor and negative floors', () => {
-    const lab = schedule.sections.find((s) => s.sectionLabel === 'CPSC_V 221-L2A')!;
+    const lab = schedule.sections.find(
+      (s) => s.title === 'Basic Algorithms and Data Structures' && s.component === 'Laboratory',
+    )!;
     expect(lab.instructors).toEqual([]);
-    const cogsLab = schedule.sections.find((s) => s.sectionLabel === 'COGS_V 300-A_L07')!;
+    const cogsLab = schedule.sections.find(
+      (s) => s.title === 'Understanding and Designing Cognitive Systems' && s.component === 'Laboratory',
+    )!;
     expect(cogsLab.meetings[0].floor).toBe('-2');
   });
 
   it('reads instructors when present', () => {
-    const cogs = schedule.sections.find((s) => s.sectionLabel === 'COGS_V 303-201')!;
+    const cogs = schedule.sections.find((s) => s.title === 'Research Methods in Cognitive Systems')!;
     expect(cogs.instructors).toEqual(['Kelsey Allen']);
   });
 });
@@ -60,21 +62,21 @@ describe('parseScheduleXlsx — Fall 2026 example', () => {
   const schedule = parseScheduleXlsx(loadExample('View_Student_Registration_Saved_Schedule (1).xlsx'), 'fall.xlsx');
 
   it('extracts sections', () => {
-    const labels = schedule.sections.map((s) => s.sectionLabel);
-    expect(labels).toContain('PHIL_V 222-001');
-    expect(labels).toContain('CPSC_V 210-102');
+    const titles = schedule.sections.map((s) => s.title);
+    expect(titles).toContain('Enriched Symbolic Logic');
+    expect(titles).toContain('Software Construction');
   });
 
-  it('parses single-term patterns as one meeting', () => {
-    const phil = schedule.sections.find((s) => s.sectionLabel === 'PHIL_V 222-001')!;
+  it('parses single-term patterns with section date bounds', () => {
+    const phil = schedule.sections.find((s) => s.title === 'Enriched Symbolic Logic')!;
     expect(phil.meetings).toHaveLength(1);
     expect(phil.meetings[0]).toMatchObject({
-      startDate: '2026-09-09',
-      endDate: '2026-12-07',
       startMin: 660,
       endMin: 750,
       buildingCode: 'BUCH',
     });
+    expect(phil.termStart).toBe('2026-09-09');
+    expect(phil.termEnd).toBe('2026-12-07');
     expect(phil.instructors).toEqual(['David Gilbert']);
   });
 });

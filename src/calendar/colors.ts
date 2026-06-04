@@ -20,7 +20,7 @@ const COURSE_COLORS = [
   '#d9c79b', // sandstone
 ];
 
-export function courseColor(courseCode: string): string {
-  const idx = parseInt(fnv1a(courseCode), 16) % COURSE_COLORS.length;
+export function courseColor(courseTitle: string): string {
+  const idx = parseInt(fnv1a(courseTitle), 16) % COURSE_COLORS.length;
   return COURSE_COLORS[idx];
 }

@@ -1,17 +1,16 @@
-import type { Schedule, Section } from '../types';
+import type { MeetingPattern, Schedule, Section } from '../types';
 import type { SheetGrid, SheetRow } from './xlsxReader';
 import { readXlsx } from './xlsxReader';
 import { parseMeetingPatterns } from './meetingParser';
 import { computeSectionId } from './sectionId';
+import { dateFromSerial } from './serialDate';
 
 const HEADER_LABELS = {
   course: 'Course',
-  gradingBasis: 'Grading Basis',
-  credits: 'Credits',
-  section: 'Section',
-  status: 'Section Status',
   component: 'Instructional Format',
   instructor: 'Instructor',
+  startDate: 'Start Date',
+  endDate: 'End Date',
   meetings: 'Meeting Patterns',
 } as const;
 
@@ -45,11 +44,21 @@ function cell(row: SheetRow, col: string | undefined): string {
   return col ? (row.cells[col] ?? '').trim() : '';
 }
 
-/** 'CPSC_V 221 - Basic Algorithms and Data Structures' -> [code, title] */
-function splitCourse(value: string): [string, string] {
-  const idx = value.indexOf(' - ');
-  if (idx === -1) return [value, ''];
-  return [value.slice(0, idx).trim(), value.slice(idx + 3).trim()];
+/** 'CPSC_V 221 - Basic Algorithms and Data Structures' -> title after ' - ' */
+function titleOf(courseCell: string): string {
+  const idx = courseCell.indexOf(' - ');
+  return idx === -1 ? courseCell : courseCell.slice(idx + 3).trim();
+}
+
+/** Excel serial cell -> ISO date, if the cell holds a number */
+function serialCell(row: SheetRow, col: string | undefined): string | undefined {
+  const v = cell(row, col);
+  const n = parseFloat(v);
+  return v && Number.isFinite(n) ? dateFromSerial(n) : undefined;
+}
+
+function meetingKey(m: MeetingPattern): string {
+  return [m.days.join(''), m.startMin, m.endMin, m.buildingCode ?? '', m.room ?? '', m.floor ?? ''].join(',');
 }
 
 function parseRow(row: SheetRow, cols: Partial<Record<HeaderKey, string>>): Section | null {
@@ -57,34 +66,37 @@ function parseRow(row: SheetRow, cols: Partial<Record<HeaderKey, string>>): Sect
   const meetingsRaw = cols.meetings ? (row.cells[cols.meetings] ?? '') : '';
   if (!courseRaw) return null;
 
-  const [courseCode, courseTitle] = splitCourse(courseRaw);
-
-  // 'CPSC_V 221-L2A - Basic Algorithms...' -> label 'CPSC_V 221-L2A', code 'L2A'
-  const sectionRaw = cell(row, cols.section);
-  const [sectionLabel] = splitCourse(sectionRaw);
-  const sectionCode = sectionLabel.startsWith(`${courseCode}-`)
-    ? sectionLabel.slice(courseCode.length + 1)
-    : sectionLabel;
-
   const instructors = cell(row, cols.instructor)
     .split(/\n+/)
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const creditsRaw = cell(row, cols.credits);
-  const credits = creditsRaw ? parseFloat(creditsRaw) : undefined;
+  // Fold per-pattern date ranges into one section-level range (we keep dates
+  // only for term bucketing), then dedupe the date-stripped patterns: a
+  // reading-break split collapses back into a single weekly meeting.
+  const parsed = parseMeetingPatterns(meetingsRaw);
+  let termStart = serialCell(row, cols.startDate);
+  let termEnd = serialCell(row, cols.endDate);
+  for (const p of parsed) {
+    if (p.startDate && (!termStart || p.startDate < termStart)) termStart = p.startDate;
+    if (p.endDate && (!termEnd || p.endDate > termEnd)) termEnd = p.endDate;
+  }
+  const meetings: MeetingPattern[] = [];
+  const seen = new Set<string>();
+  for (const p of parsed) {
+    const key = meetingKey(p.pattern);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    meetings.push(p.pattern);
+  }
 
   const base = {
-    courseCode,
-    courseTitle,
-    sectionCode,
-    sectionLabel,
+    title: titleOf(courseRaw),
     component: cell(row, cols.component),
-    status: cell(row, cols.status) || undefined,
-    credits: Number.isFinite(credits) ? credits : undefined,
     instructors,
-    gradingBasis: cell(row, cols.gradingBasis) || undefined,
-    meetings: parseMeetingPatterns(meetingsRaw),
+    termStart,
+    termEnd,
+    meetings,
   };
   return { ...base, id: computeSectionId(base) };
 }

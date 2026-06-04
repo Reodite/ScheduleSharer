@@ -11,6 +11,9 @@ import type { Person } from '../types';
 const SPRING = 'View_Student_Registration_Saved_Schedule.xlsx';
 const FALL = 'View_Student_Registration_Saved_Schedule (1).xlsx';
 
+const COGS = 'Research Methods in Cognitive Systems';
+const PHIL = 'Enriched Symbolic Logic';
+
 function loadExample(name: string): ArrayBuffer {
   const buf = readFileSync(join(__dirname, '../../examples', name));
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
@@ -43,7 +46,7 @@ describe('terms', () => {
     const terms = deriveTerms([alice, bob]);
     expect(defaultTermKey(terms, '2026-10-15')).toBe('2026-fall');
     expect(defaultTermKey(terms, '2026-06-04')).toBe('2026-fall'); // before both -> upcoming
-    expect(defaultTermKey(terms, '2027-02-15')).toBe('2027-spring'); // reading break is still in-term
+    expect(defaultTermKey(terms, '2027-02-15')).toBe('2027-spring'); // mid-term
     expect(defaultTermKey(terms, '2028-01-01')).toBe('2027-spring'); // after both -> latest
   });
 });
@@ -55,15 +58,15 @@ describe('buildCalendar', () => {
   it('merges identical sections across people into one block with both avatars', () => {
     const model = buildCalendar([alice, aliceTwin], spring);
     const monday = model.blocksByDay.get('Mon')!;
-    const cogs = monday.find((b) => b.section.courseCode === 'COGS_V 303');
+    const cogs = monday.find((b) => b.section.title === COGS);
     expect(cogs).toBeDefined();
     expect(cogs!.people.map((p) => p.handle)).toEqual(['alice', 'casey']);
   });
 
-  it('renders a reading-break-split section as ONE weekly block, person deduped', () => {
+  it('renders each section as ONE weekly block per day', () => {
     const model = buildCalendar([alice], spring);
     const monday = model.blocksByDay.get('Mon')!;
-    const cogsBlocks = monday.filter((b) => b.section.courseCode === 'COGS_V 303');
+    const cogsBlocks = monday.filter((b) => b.section.title === COGS);
     expect(cogsBlocks).toHaveLength(1);
     expect(cogsBlocks[0].people).toHaveLength(1);
   });
@@ -71,22 +74,26 @@ describe('buildCalendar', () => {
   it('filters by term', () => {
     const model = buildCalendar([alice, bob], spring);
     const all = [...model.blocksByDay.values()].flat();
-    expect(all.some((b) => b.section.courseCode === 'PHIL_V 222')).toBe(false); // bob is Fall-only
-    expect(all.some((b) => b.section.courseCode === 'COGS_V 303')).toBe(true);
+    expect(all.some((b) => b.section.title === PHIL)).toBe(false); // bob is Fall-only
+    expect(all.some((b) => b.section.title === COGS)).toBe(true);
   });
 
   it('excludes disabled people', () => {
     const model = buildCalendar([{ ...alice, enabled: false }, aliceTwin], spring);
     const monday = model.blocksByDay.get('Mon')!;
-    const cogs = monday.find((b) => b.section.courseCode === 'COGS_V 303')!;
+    const cogs = monday.find((b) => b.section.title === COGS)!;
     expect(cogs.people.map((p) => p.handle)).toEqual(['casey']);
   });
 
   it('assigns side-by-side columns to overlapping different courses', () => {
-    // alice Mon: COGS 303 9:30-11, CPSC 221 13-14, STAT 200 14-15 — no overlaps
-    // fabricate an overlap by merging alice's Mon with a synthetic shifted block set
     const blocks = mergeBlocks(expandBlocks([alice], spring)).filter((b) => b.day === 'Mon');
-    const synthetic = { ...blocks[0], key: 'synthetic', startMin: blocks[0].startMin + 30, endMin: blocks[0].endMin + 30, section: { ...blocks[0].section, id: 'other' } };
+    const synthetic = {
+      ...blocks[0],
+      key: 'synthetic',
+      startMin: blocks[0].startMin + 30,
+      endMin: blocks[0].endMin + 30,
+      section: { ...blocks[0].section, id: 'other' },
+    };
     const laid = layoutDay([...blocks, synthetic]);
     const overlapped = laid.filter((b) => b.cols === 2);
     expect(overlapped).toHaveLength(2);
@@ -117,15 +124,16 @@ describe('commonFreeIntervals', () => {
 });
 
 describe('whoIsFreeNow', () => {
-  it('reports in-class vs free with date-range awareness', () => {
-    // Wed 2027-01-13 10:00 — alice is in COGS_V 303 (9:30-11:00 Mon Wed)
+  it('reports in-class vs free with term awareness', () => {
+    // Wed 2027-01-13 10:00 — alice is in COGS (9:30-11:00 Mon Wed)
     const inClass = whoIsFreeNow([alice], new Date(2027, 0, 13, 10, 0));
-    expect(inClass[0].current?.section.courseCode).toBe('COGS_V 303');
+    expect(inClass[0].current?.section.title).toBe(COGS);
     expect(inClass[0].current?.pattern.room).toBe('D322');
 
-    // Wed 2027-02-17 10:00 — reading break: same weekday/time but out of range
-    const readingBreak = whoIsFreeNow([alice], new Date(2027, 1, 17, 10, 0));
-    expect(readingBreak[0].current).toBeNull();
+    // Wed 2026-06-03 10:00 — outside alice's term entirely: free
+    const offTerm = whoIsFreeNow([alice], new Date(2026, 5, 3, 10, 0));
+    expect(offTerm[0].current).toBeNull();
+    expect(offTerm[0].next).toBeNull();
 
     // Wed 2027-01-13 8:00 — before class: free, next is COGS at 9:30
     const morning = whoIsFreeNow([alice], new Date(2027, 0, 13, 8, 0));

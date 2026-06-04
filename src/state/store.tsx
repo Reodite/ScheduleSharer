@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
 import type { ReactNode } from 'react';
 import type { Avatar, GroupState, Person, Schedule } from '../types';
-import { emptyGroup, SCHEMA_VERSION } from '../types';
+import { emptyGroup } from '../types';
 import { mergeGroups } from './merge';
+import { normalizeGroup } from './normalize';
 import { decodeShareHash, ShareDecodeError } from './shareLink';
 
 const STORAGE_KEY = 'schedulesharer.v1';
@@ -67,7 +68,8 @@ function loadLocal(): GroupState {
     if (!raw) return emptyGroup();
     const parsed = JSON.parse(raw) as GroupState;
     if (typeof parsed?.schemaVersion !== 'number' || !Array.isArray(parsed?.people)) return emptyGroup();
-    return { ...parsed, schemaVersion: SCHEMA_VERSION };
+    // migrates v1-shaped data (course codes, per-meeting dates) in place
+    return normalizeGroup(parsed);
   } catch {
     return emptyGroup();
   }

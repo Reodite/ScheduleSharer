@@ -21,9 +21,9 @@ describe('parseMeetingPatterns', () => {
 
   it('parses a single pattern with all fields', () => {
     const [p] = parseMeetingPatterns(single);
-    expect(p).toMatchObject({
-      startDate: '2026-09-09',
-      endDate: '2026-12-07',
+    expect(p.startDate).toBe('2026-09-09');
+    expect(p.endDate).toBe('2026-12-07');
+    expect(p.pattern).toMatchObject({
       days: ['Mon', 'Wed'],
       startMin: 660,
       endMin: 750,
@@ -35,7 +35,7 @@ describe('parseMeetingPatterns', () => {
     });
   });
 
-  it('splits reading-break cells into two patterns', () => {
+  it('splits reading-break cells into two dated patterns', () => {
     const cell =
       '2027-01-06 - 2027-02-10 | Mon Wed | 9:30 a.m. - 11:00 a.m. | UBCV | Buchanan Building (BUCH) | Floor: 3 | Room: D322\n\n' +
       '2027-02-22 - 2027-04-12 | Mon Wed | 9:30 a.m. - 11:00 a.m. | UBCV | Buchanan Building (BUCH) | Floor: 3 | Room: D322';
@@ -45,31 +45,31 @@ describe('parseMeetingPatterns', () => {
     expect(patterns[0].endDate).toBe('2027-02-10');
     expect(patterns[1].startDate).toBe('2027-02-22');
     expect(patterns[1].endDate).toBe('2027-04-12');
-    expect(patterns.every((p) => p.startMin === 570 && p.endMin === 660)).toBe(true);
+    expect(patterns.every((p) => p.pattern.startMin === 570 && p.pattern.endMin === 660)).toBe(true);
   });
 
   it('preserves negative floors', () => {
     const [p] = parseMeetingPatterns(
       '2027-01-08 - 2027-02-12 | Fri | 10:00 a.m. - 12:00 p.m. | UBCV | Iona Building (IONA) | Floor: -2 | Room: B151',
     );
-    expect(p.floor).toBe('-2');
-    expect(p.endMin).toBe(720);
+    expect(p.pattern.floor).toBe('-2');
+    expect(p.pattern.endMin).toBe(720);
   });
 
   it('parses single-day labs', () => {
     const [p] = parseMeetingPatterns(
       '2027-01-05 - 2027-02-09 | Tue | 1:00 p.m. - 3:00 p.m. | UBCV | Hector J. MacLeod Building (MCLD) | Floor: 2 | Room: 2012',
     );
-    expect(p.days).toEqual(['Tue']);
-    expect(p.startMin).toBe(780);
-    expect(p.endMin).toBe(900);
+    expect(p.pattern.days).toEqual(['Tue']);
+    expect(p.pattern.startMin).toBe(780);
+    expect(p.pattern.endMin).toBe(900);
   });
 
   it('survives missing segments', () => {
     const [p] = parseMeetingPatterns('2026-09-09 - 2026-12-07 | Tue Thu | 2:00 p.m. - 3:30 p.m.');
-    expect(p.days).toEqual(['Tue', 'Thu']);
-    expect(p.room).toBeUndefined();
-    expect(p.buildingCode).toBeUndefined();
+    expect(p.pattern.days).toEqual(['Tue', 'Thu']);
+    expect(p.pattern.room).toBeUndefined();
+    expect(p.pattern.buildingCode).toBeUndefined();
   });
 
   it('drops unparseable text and empty cells', () => {

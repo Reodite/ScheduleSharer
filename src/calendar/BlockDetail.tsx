@@ -2,7 +2,6 @@ import type { MergedBlock } from './buildCalendar';
 import { courseColor } from './colors';
 import { AvatarChip } from '../avatar/AvatarChip';
 import { minutesToFullLabel } from '../util/time';
-import { shortCode } from './Block';
 
 interface Props {
   block: MergedBlock;
@@ -16,21 +15,18 @@ function fmtDate(iso: string): string {
 
 export function BlockDetail({ block, onClose }: Props) {
   const s = block.section;
-  const color = courseColor(s.courseCode);
+  const color = courseColor(s.title);
 
   return (
     <div className="overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="detail__head">
           <span className="detail__swatch" style={{ background: color }} />
-          <h2 className="detail__title">
-            {shortCode(s.courseCode)} — {s.courseTitle}
-          </h2>
+          <h2 className="detail__title">{s.title}</h2>
         </div>
         <div className="detail__sub">
-          {s.sectionLabel} · {s.component}
-          {s.status ? ` · ${s.status}` : ''}
-          {s.credits != null ? ` · ${s.credits} cr` : ''}
+          {s.component}
+          {s.termStart && s.termEnd ? ` · ${fmtDate(s.termStart)} → ${fmtDate(s.termEnd)}` : ''}
         </div>
 
         <div className="detail__rows">
@@ -47,10 +43,6 @@ export function BlockDetail({ block, onClose }: Props) {
               {s.meetings.map((m, i) => (
                 <div key={i} className="mono">
                   {m.days.join(' ')} {minutesToFullLabel(m.startMin)}–{minutesToFullLabel(m.endMin)}
-                  <span style={{ color: 'var(--text-faint)' }}>
-                    {' '}
-                    ({fmtDate(m.startDate)} → {fmtDate(m.endDate)})
-                  </span>
                 </div>
               ))}
             </dd>

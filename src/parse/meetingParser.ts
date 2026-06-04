@@ -6,6 +6,18 @@ const TIME_RANGE_RE =
   /^(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)$/i;
 const BUILDING_RE = /^(.*)\(([A-Z0-9]{2,6})\)$/;
 
+/**
+ * A parsed pattern line. Date bounds are carried separately from the
+ * MeetingPattern: the schedule parser folds them into the section's
+ * termStart/termEnd and then discards them (weekly day+time is all the
+ * calendar needs, and dates bloat share links).
+ */
+export interface ParsedMeeting {
+  pattern: MeetingPattern;
+  startDate?: string;
+  endDate?: string;
+}
+
 /** '12:30', 'p.m.' -> 750. Handles noon (12 p.m. -> 720) and midnight (12 a.m. -> 0). */
 export function toMinutes(hourStr: string, minStr: string | undefined, meridiem: string): number {
   const h = parseInt(hourStr, 10) % 12;
@@ -15,38 +27,38 @@ export function toMinutes(hourStr: string, minStr: string | undefined, meridiem:
 }
 
 /**
- * Parse one Workday Meeting Patterns cell into MeetingPattern[].
- * Cells contain one or MORE pattern lines separated by blank lines
- * (schedules split around reading break), each shaped like:
+ * Parse one Workday Meeting Patterns cell. Cells contain one or MORE pattern
+ * lines separated by blank lines (schedules split around reading break), each
+ * shaped like:
  *   2027-01-06 - 2027-02-10 | Mon Wed | 9:30 a.m. - 11:00 a.m. | UBCV | Buchanan Building (BUCH) | Floor: 3 | Room: D322
  * Segments are classified by shape, not position, so missing pieces degrade gracefully.
  */
-export function parseMeetingPatterns(cell: string): MeetingPattern[] {
+export function parseMeetingPatterns(cell: string): ParsedMeeting[] {
   return cell
     .split(/\n\s*\n/)
     .map((s) => s.trim())
     .filter(Boolean)
     .map(parseOnePattern)
-    .filter((p): p is MeetingPattern => p !== null);
+    .filter((p): p is ParsedMeeting => p !== null);
 }
 
-function parseOnePattern(raw: string): MeetingPattern | null {
+function parseOnePattern(raw: string): ParsedMeeting | null {
   const pattern: MeetingPattern = {
-    startDate: '',
-    endDate: '',
     days: [],
     startMin: -1,
     endMin: -1,
     raw,
   };
+  let startDate: string | undefined;
+  let endDate: string | undefined;
 
   for (const segment of raw.split('|').map((s) => s.trim())) {
     if (!segment) continue;
 
     const dateMatch = segment.match(DATE_RANGE_RE);
     if (dateMatch) {
-      pattern.startDate = dateMatch[1];
-      pattern.endDate = dateMatch[2];
+      startDate = dateMatch[1];
+      endDate = dateMatch[2];
       continue;
     }
 
@@ -87,5 +99,5 @@ function parseOnePattern(raw: string): MeetingPattern | null {
 
   // A pattern is only renderable with a time and at least one day.
   if (pattern.startMin < 0 || pattern.endMin < 0 || pattern.days.length === 0) return null;
-  return pattern;
+  return { pattern, startDate, endDate };
 }

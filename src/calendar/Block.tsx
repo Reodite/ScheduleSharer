@@ -3,11 +3,18 @@ import { courseColor } from './colors';
 import { AvatarChip } from '../avatar/AvatarChip';
 import { rangeLabel } from '../util/time';
 
-export function shortCode(courseCode: string): string {
-  return courseCode.replace(/_V(?=\s)/, '');
-}
-
 const MAX_CHIPS = 4;
+
+const COMPONENT_ABBREV: Record<string, string> = {
+  Lecture: 'lec',
+  Laboratory: 'lab',
+  Discussion: 'dis',
+  Seminar: 'sem',
+};
+
+export function componentAbbrev(component: string): string {
+  return COMPONENT_ABBREV[component] ?? component.slice(0, 3).toLowerCase();
+}
 
 interface Props {
   block: MergedBlock;
@@ -17,7 +24,7 @@ interface Props {
 }
 
 export function Block({ block, top, height, onClick }: Props) {
-  const color = courseColor(block.section.courseCode);
+  const color = courseColor(block.section.title);
   const size = height < 42 ? 'xs' : height < 62 ? 'sm' : 'lg';
   const gapPct = 100 / block.cols;
 
@@ -40,11 +47,11 @@ export function Block({ block, top, height, onClick }: Props) {
       className="cal-block"
       style={style}
       data-size={size}
-      title={`${block.section.sectionLabel} · ${rangeLabel(block.startMin, block.endMin)}${loc ? ` · ${loc}` : ''} · ${block.people.map((p) => p.handle).join(', ')}`}
+      title={`${block.section.title} (${block.section.component}) · ${rangeLabel(block.startMin, block.endMin)}${loc ? ` · ${loc}` : ''} · ${block.people.map((p) => p.handle).join(', ')}`}
       onClick={() => onClick(block)}
     >
       <span className="cal-block__code">
-        {shortCode(block.section.courseCode)} <small>{block.section.component.slice(0, 3).toLowerCase()}</small>
+        {block.section.title} <small>{componentAbbrev(block.section.component)}</small>
       </span>
       <span className="cal-block__meta">{rangeLabel(block.startMin, block.endMin)}</span>
       {loc && <span className="cal-block__meta cal-block__meta--loc">{loc}</span>}

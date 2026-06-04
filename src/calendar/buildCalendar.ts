@@ -26,9 +26,11 @@ export interface MergedBlock {
   cols: number;
 }
 
-function overlapsTerm(m: MeetingPattern, term: Term | null): boolean {
+function overlapsTerm(section: Section, term: Term | null): boolean {
   if (!term) return true;
-  return m.startDate <= term.end && m.endDate >= term.start;
+  // sections without dates (defensive) always show
+  if (!section.termStart || !section.termEnd) return true;
+  return section.termStart <= term.end && section.termEnd >= term.start;
 }
 
 /** Expand enabled people's schedules into per-day block instances for a term. */
@@ -37,8 +39,8 @@ export function expandBlocks(people: Person[], term: Term | null): BlockInstance
   for (const person of people) {
     if (!person.enabled || !person.schedule) continue;
     for (const section of person.schedule.sections) {
+      if (!overlapsTerm(section, term)) continue;
       for (const pattern of section.meetings) {
-        if (!overlapsTerm(pattern, term)) continue;
         for (const day of pattern.days) {
           blocks.push({ day, startMin: pattern.startMin, endMin: pattern.endMin, section, person, pattern });
         }
@@ -50,9 +52,7 @@ export function expandBlocks(people: Person[], term: Term | null): BlockInstance
 
 /**
  * Collapse identical (day, section, time, room) slots into one block listing
- * every participant. Reading-break split patterns of the same section land on
- * the same key, so a section never renders twice in one weekly slot; people
- * are deduped for the same reason.
+ * every participant.
  */
 export function mergeBlocks(instances: BlockInstance[]): MergedBlock[] {
   const groups = new Map<string, MergedBlock>();

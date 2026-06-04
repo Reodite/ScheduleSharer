@@ -9,8 +9,9 @@ interface Props {
   now: Date;
 }
 
-function shortCode(courseCode: string): string {
-  return courseCode.replace(/_V(?=\s)/, '');
+/** course titles can be long — clip for the one-line status row */
+function shortTitle(title: string): string {
+  return title.length > 26 ? `${title.slice(0, 24)}…` : title;
 }
 
 export function NowPanel({ people, now }: Props) {
@@ -35,14 +36,14 @@ export function NowPanel({ people, now }: Props) {
             <span className="now-row__handle">{names.get(person.id)}</span>
             {current ? (
               <span className="now-row__status now-row__status--busy">
-                {shortCode(current.section.courseCode)}
+                {shortTitle(current.section.title)}
                 {current.pattern.buildingCode ? ` · ${current.pattern.buildingCode} ${current.pattern.room ?? ''}` : ''}
                 {` · til ${minutesToFullLabel(current.pattern.endMin)}`}
               </span>
             ) : (
               <span className="now-row__status now-row__status--free">
                 free
-                {next ? ` · ${shortCode(next.section.courseCode)} at ${minutesToFullLabel(next.pattern.startMin)}` : ' all day'}
+                {next ? ` · ${shortTitle(next.section.title)} at ${minutesToFullLabel(next.pattern.startMin)}` : ' all day'}
               </span>
             )}
           </div>
