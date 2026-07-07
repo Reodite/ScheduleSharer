@@ -1,11 +1,13 @@
-import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
+import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate';
 import type { Avatar, GroupState, MeetingPattern, Schedule, Section } from '../types';
 import { SCHEMA_VERSION } from '../types';
 import { computeSectionId } from '../parse/sectionId';
 
 /**
- * Share links carry the whole group, tuple-packed then lz-string compressed
- * into the URL hash (#d=...). Size-cutting measures (v2):
+ * Share links carry the whole group, tuple-packed, raw-DEFLATEd (fflate) and
+ * base64url'd into the URL hash (#e=...). Deflate beats the old lz-string
+ * encoding by ~40%, which is what lets a group fit in one Discord message.
+ * Size-cutting measures:
  *  - sections shared by multiple people are stored ONCE; each person just
  *    lists indices into the group-wide section table
  *  - no per-meeting date ranges (one termStart/termEnd pair per section)
@@ -13,9 +15,27 @@ import { computeSectionId } from '../parse/sectionId';
  *    section ids regenerated on unpack
  */
 
-const HASH_KEY = '#d=';
-/** beyond this many chars, some chat apps mangle URLs — suggest JSON export */
-export const URL_WARN_LENGTH = 7000;
+const HASH_KEY = '#e=';
+/** pre-deflate lz-string links — rejected with a refresh hint, not silence */
+const LEGACY_HASH_KEY = '#d=';
+/** Discord hard-caps messages at 2000 chars — the binding limit in practice */
+export const URL_WARN_LENGTH = 2000;
+
+function toBase64Url(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromBase64Url(s: string): Uint8Array {
+  const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
 
 type PackedMeeting = [
   string, // days joined ','
@@ -140,7 +160,7 @@ export function encodeShareHash(state: GroupState): string {
   });
 
   const packed: PackedGroup = [SCHEMA_VERSION, state.groupId, state.name, table, people];
-  return HASH_KEY + compressToEncodedURIComponent(JSON.stringify(packed));
+  return HASH_KEY + toBase64Url(deflateSync(strToU8(JSON.stringify(packed)), { level: 9 }));
 }
 
 export function buildShareUrl(state: GroupState): string {
@@ -150,14 +170,17 @@ export function buildShareUrl(state: GroupState): string {
 
 export class ShareDecodeError extends Error {}
 
-/** Decode a '#d=...' hash. Returns null if the hash isn't a share payload. */
+/** Decode a '#e=...' hash. Returns null if the hash isn't a share payload. */
 export function decodeShareHash(hash: string): GroupState | null {
+  if (hash.startsWith(LEGACY_HASH_KEY)) {
+    throw new ShareDecodeError(
+      'This link is from an older version of ScheduleSharer — ask your friend to refresh the app and copy a fresh one.',
+    );
+  }
   if (!hash.startsWith(HASH_KEY)) return null;
   let packed: PackedGroup;
   try {
-    const json = decompressFromEncodedURIComponent(hash.slice(HASH_KEY.length));
-    if (!json) throw new Error('empty');
-    packed = JSON.parse(json);
+    packed = JSON.parse(strFromU8(inflateSync(fromBase64Url(hash.slice(HASH_KEY.length)))));
   } catch {
     throw new ShareDecodeError('This share link is damaged or truncated — ask for a fresh one.');
   }

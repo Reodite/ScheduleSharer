@@ -78,7 +78,7 @@ await pageA.click('.person:has-text("alex") .person__main');
 
 // share link
 await pageA.click('button:has-text("Copy share link")');
-await pageA.waitForFunction(() => location.hash.startsWith('#d='));
+await pageA.waitForFunction(() => location.hash.startsWith('#e='));
 const hash = await pageA.evaluate(() => location.hash);
 check('share hash generated', hash.length > 50);
 console.log(`  link length: ${(BASE + hash).length} chars`);
@@ -102,7 +102,7 @@ await pageB.screenshot({ path: 'e2e/shots/05-merged.png' });
 
 // B re-shares; A opens -> casey arrives, max/alex intact
 await pageB.click('button:has-text("Copy share link")');
-await pageB.waitForFunction(() => location.hash.startsWith('#d='));
+await pageB.waitForFunction(() => location.hash.startsWith('#e='));
 const hash2 = await pageB.evaluate(() => location.hash);
 await pageA.goto(BASE + hash2);
 await pageA.waitForSelector('.calendar');
@@ -128,7 +128,7 @@ await pageA.screenshot({ path: 'e2e/shots/08-manager.png' });
 
 // renamed title travels with the link
 await pageA.click('button:has-text("Copy share link")');
-await pageA.waitForFunction(() => location.hash.startsWith('#d='));
+await pageA.waitForFunction(() => location.hash.startsWith('#e='));
 const hash3 = await pageA.evaluate(() => location.hash);
 const ctxC = await browser.newContext({ viewport: { width: 1440, height: 920 } });
 const pageC = await ctxC.newPage();

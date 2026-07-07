@@ -22,7 +22,7 @@ export function ShareBar() {
       toast('Could not access the clipboard — copy the address bar URL instead.', 'error');
     }
     if (url.length > URL_WARN_LENGTH) {
-      toast('That link is getting long — some chat apps may cut it. Consider Export JSON.', 'error');
+      toast('That link no longer fits one Discord message (2000 chars) — send it elsewhere or use Export JSON.', 'error');
     }
   }
 

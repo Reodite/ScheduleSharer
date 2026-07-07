@@ -85,18 +85,22 @@ describe('share link round-trip', () => {
     expect(decoded.people[0].avatar.color).toBe('#3a86ff');
   });
 
-  it('keeps a five-person link under 4000 chars (fits Slack/Nitro messages)', () => {
+  it('keeps a five-person link under 2000 chars (fits one Discord message)', () => {
     const people = Array.from({ length: 5 }, (_, i) =>
       makePerson(`p${i}`, `person${i}`, i % 2 ? FALL : SPRING),
     );
     const hash = encodeShareHash(makeGroup(people));
-    expect(hash.length).toBeLessThan(4000);
+    expect(hash.length).toBeLessThan(2000);
   });
 
   it('returns null for non-share hashes and throws on garbage payloads', () => {
     expect(decodeShareHash('')).toBeNull();
     expect(decodeShareHash('#other')).toBeNull();
-    expect(() => decodeShareHash('#d=!!!notvalid!!!')).toThrow();
+    expect(() => decodeShareHash('#e=!!!notvalid!!!')).toThrow();
+  });
+
+  it('rejects pre-deflate #d= links with a refresh hint', () => {
+    expect(() => decodeShareHash('#d=anything')).toThrow(/older version/);
   });
 });
 

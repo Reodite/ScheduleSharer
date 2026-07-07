@@ -22,9 +22,6 @@ share link's URL hash, and persists locally in your browser.
 - **Profiles** — emoji, colored initials, or an uploaded photo (photos stay on-device and in JSON
   exports; share links downgrade them to initials to keep URLs short).
 - **JSON export/import** — full-fidelity backup path (includes photos), for when a link won't do.
-- **Multiple schedules** — cache up to 5 named calendars (e.g. one per friend group or term) and
-  switch between them from the topbar. A friend's link updates its matching cached schedule by id;
-  a link to a calendar you haven't seen before is cached as a new one. Rename/delete from the same menu.
 
 ## How to add your schedule
 
@@ -72,3 +69,5 @@ to `main`. One-time setup:
 - `src/calendar/` — pure layout pipeline: expand → merge identical sections across people →
   greedy column assignment for overlaps; pixel-positioned blocks on a CSS grid week view.
 - `src/features/` — term derivation, common-free-time intervals, who's-free-now.
+
+
