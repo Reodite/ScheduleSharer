@@ -83,6 +83,52 @@ describe('parseScheduleXlsx — Fall 2026 example', () => {
   });
 });
 
+describe('parseScheduleXlsx — "View My Courses" multi-table export', () => {
+  const schedule = parseScheduleXlsx(loadExample('View_My_Courses (1).xlsx'), 'mycourses.xlsx');
+
+  it('extracts only Enrolled sections (drops Waitlisted + Dropped/Withdrawn tables)', () => {
+    // The file has 12 enrolled rows, 3 waitlisted, and 2 dropped/withdrawn.
+    expect(schedule.sections).toHaveLength(12);
+    const titles = schedule.sections.map((s) => s.title);
+    expect(titles).toContain('Introduction to Cognitive Systems');
+    expect(titles).toContain('Enriched Symbolic Logic');
+    // Waitlisted courses must NOT appear.
+    expect(titles).not.toContain('Matrix Algebra');
+    expect(titles).not.toContain('Calculus III');
+  });
+
+  it('keeps the enrolled CPSC 210 sections but not the dropped/withdrawn ones', () => {
+    const cpsc210 = schedule.sections.filter((s) => s.courseCode === 'CPSC_V 210');
+    // Enrolled: -102 Lecture + -L1M Laboratory. Dropped: -L1E Lab + -101 Lecture.
+    expect(cpsc210.map((s) => s.component).sort()).toEqual(['Laboratory', 'Lecture']);
+  });
+
+  it('reads the "Course Listing" column and splits code/title with no section suffix', () => {
+    const cpsc = schedule.sections.find(
+      (s) => s.title === 'Basic Algorithms and Data Structures' && s.component === 'Lecture',
+    )!;
+    expect(cpsc.courseCode).toBe('CPSC_V 221');
+    expect(cpsc.courseCode).not.toMatch(/-/);
+  });
+
+  it('parses multiple instructors from a newline-separated cell', () => {
+    const cogs = schedule.sections.find((s) => s.title === 'Introduction to Cognitive Systems')!;
+    expect(cogs.instructors).toEqual(['Laura Cang', 'Oksana Tkachman', 'Thomas Bittner']);
+  });
+
+  it('collapses the reading-break split and keeps the outer term range', () => {
+    const stat = schedule.sections.find(
+      (s) => s.title === 'Elementary Statistics for Applications' && s.component === 'Lecture',
+    )!;
+    expect(stat.meetings).toHaveLength(1);
+    expect(stat.meetings[0]).toMatchObject({ days: ['Mon', 'Wed', 'Fri'], startMin: 840, endMin: 900 });
+    // Folds to the earliest bound across the Start Date column (2027-01-05) and
+    // the meeting-pattern ranges, out to the last end date.
+    expect(stat.termStart).toBe('2027-01-05');
+    expect(stat.termEnd).toBe('2027-04-12');
+  });
+});
+
 describe('section identity', () => {
   it('is deterministic across re-parses (merge key for shared sections)', () => {
     const a = parseScheduleXlsx(loadExample('View_Student_Registration_Saved_Schedule.xlsx'));

@@ -5,39 +5,53 @@ import { parseMeetingPatterns } from './meetingParser';
 import { computeSectionId } from './sectionId';
 import { dateFromSerial } from './serialDate';
 
+// Each key maps to the header label(s) that can name that column. Workday has
+// two schedule exports: the single-table "View Student Registration Saved
+// Schedule" (course column literally 'Course') and the multi-table "View My
+// Courses" ('Course Listing', plus a 'Registration Status' column).
 const HEADER_LABELS = {
-  course: 'Course',
-  component: 'Instructional Format',
-  instructor: 'Instructor',
-  startDate: 'Start Date',
-  endDate: 'End Date',
-  meetings: 'Meeting Patterns',
-} as const;
+  course: ['Course', 'Course Listing'],
+  component: ['Instructional Format'],
+  instructor: ['Instructor'],
+  startDate: ['Start Date'],
+  endDate: ['End Date'],
+  meetings: ['Meeting Patterns'],
+  registration: ['Registration Status'],
+} as const satisfies Record<string, readonly string[]>;
 
 type HeaderKey = keyof typeof HEADER_LABELS;
 
-/**
- * Find the header row (the one containing both 'Course' and 'Meeting Patterns')
- * and map each header label to its column letter. Workday prepends a 2-row
- * title preamble, so never assume fixed positions.
- */
-function findHeader(grid: SheetGrid): { rowNum: number; cols: Partial<Record<HeaderKey, string>> } | null {
-  for (const row of grid.rows) {
-    const values = Object.entries(row.cells);
-    const hasCourse = values.some(([, v]) => v.trim() === HEADER_LABELS.course);
-    const hasMeetings = values.some(([, v]) => v.trim() === HEADER_LABELS.meetings);
-    if (!hasCourse || !hasMeetings) continue;
+interface HeaderRow {
+  rowNum: number;
+  cols: Partial<Record<HeaderKey, string>>;
+}
 
-    const cols: Partial<Record<HeaderKey, string>> = {};
-    for (const [col, v] of values) {
-      const label = v.trim();
-      for (const [key, expected] of Object.entries(HEADER_LABELS) as [HeaderKey, string][]) {
-        if (label === expected) cols[key] = col;
-      }
+/** Map a row's cells to column letters by header label (leftmost match wins). */
+function mapHeaderCols(row: SheetRow): Partial<Record<HeaderKey, string>> {
+  const cols: Partial<Record<HeaderKey, string>> = {};
+  for (const [col, v] of Object.entries(row.cells)) {
+    const label = v.trim();
+    for (const key of Object.keys(HEADER_LABELS) as HeaderKey[]) {
+      if (cols[key]) continue;
+      if ((HEADER_LABELS[key] as readonly string[]).includes(label)) cols[key] = col;
     }
-    return { rowNum: row.rowNum, cols };
   }
-  return null;
+  return cols;
+}
+
+/**
+ * Find every header row (each containing both a course column and 'Meeting
+ * Patterns'). The "Saved Schedule" export has one; "View My Courses" has one
+ * per table (Enrolled / Waitlisted / Dropped-Withdrawn), and each table shifts
+ * its columns, so a per-table mapping is required — never assume fixed positions.
+ */
+function findHeaders(grid: SheetGrid): HeaderRow[] {
+  const headers: HeaderRow[] = [];
+  for (const row of grid.rows) {
+    const cols = mapHeaderCols(row);
+    if (cols.course && cols.meetings) headers.push({ rowNum: row.rowNum, cols });
+  }
+  return headers;
 }
 
 function cell(row: SheetRow, col: string | undefined): string {
@@ -66,6 +80,11 @@ function parseRow(row: SheetRow, cols: Partial<Record<HeaderKey, string>>): Sect
   const courseRaw = cell(row, cols.course);
   const meetingsRaw = cols.meetings ? (row.cells[cols.meetings] ?? '') : '';
   if (!courseRaw) return null;
+
+  // "View My Courses" lists Waitlisted and Dropped/Withdrawn courses in their
+  // own tables — keep only confirmed enrollments. When a table has no
+  // 'Registration Status' column (the old single-table export), keep every row.
+  if (cols.registration && cell(row, cols.registration) !== 'Registered') return null;
 
   const instructors = cell(row, cols.instructor)
     .split(/\n+/)
@@ -105,18 +124,24 @@ function parseRow(row: SheetRow, cols: Partial<Record<HeaderKey, string>>): Sect
 }
 
 export function parseScheduleGrid(grid: SheetGrid, sourceFileName?: string): Schedule {
-  const header = findHeader(grid);
-  if (!header) {
+  const headers = findHeaders(grid);
+  if (headers.length === 0) {
     throw new Error(
-      'Could not find the schedule table — is this a Workday "View Student Registration Saved Schedule" export?',
+      'Could not find the schedule table — is this a Workday "View My Courses" or "View Student Registration Saved Schedule" export?',
     );
   }
 
+  // Parse each table with its own column mapping; a table's rows run from just
+  // after its header to just before the next table's header.
   const sections: Section[] = [];
-  for (const row of grid.rows) {
-    if (row.rowNum <= header.rowNum) continue;
-    const section = parseRow(row, header.cols);
-    if (section) sections.push(section);
+  for (let i = 0; i < headers.length; i++) {
+    const { rowNum, cols } = headers[i];
+    const nextRowNum = i + 1 < headers.length ? headers[i + 1].rowNum : Infinity;
+    for (const row of grid.rows) {
+      if (row.rowNum <= rowNum || row.rowNum >= nextRowNum) continue;
+      const section = parseRow(row, cols);
+      if (section) sections.push(section);
+    }
   }
 
   if (sections.length === 0) {
