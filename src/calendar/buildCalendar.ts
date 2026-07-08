@@ -21,6 +21,8 @@ export interface MergedBlock {
   section: Section;
   people: Person[];
   pattern: MeetingPattern;
+  /** distinct rooms for this slot — usually one, but a lab can span two */
+  rooms: string[];
   /** column slot within an overlap cluster (different courses colliding) */
   col: number;
   cols: number;
@@ -51,16 +53,21 @@ export function expandBlocks(people: Person[], term: Term | null): BlockInstance
 }
 
 /**
- * Collapse identical (day, section, time, room) slots into one block listing
- * every participant.
+ * Collapse identical (day, section, time) slots into one block listing every
+ * participant. Room is deliberately NOT part of the key: when Workday lists a
+ * single meeting in two rooms (e.g. a lab spanning C324/C326), that's one time
+ * commitment, not two — collapse it and collect the rooms instead of rendering
+ * overlapping duplicate blocks.
  */
 export function mergeBlocks(instances: BlockInstance[]): MergedBlock[] {
   const groups = new Map<string, MergedBlock>();
   for (const inst of instances) {
-    const key = [inst.day, inst.section.id, inst.startMin, inst.endMin, inst.pattern.room ?? ''].join('|');
+    const key = [inst.day, inst.section.id, inst.startMin, inst.endMin].join('|');
+    const room = inst.pattern.room ?? '';
     const existing = groups.get(key);
     if (existing) {
       if (!existing.people.some((p) => p.id === inst.person.id)) existing.people.push(inst.person);
+      if (room && !existing.rooms.includes(room)) existing.rooms.push(room);
     } else {
       groups.set(key, {
         key,
@@ -70,13 +77,17 @@ export function mergeBlocks(instances: BlockInstance[]): MergedBlock[] {
         section: inst.section,
         people: [inst.person],
         pattern: inst.pattern,
+        rooms: room ? [room] : [],
         col: 0,
         cols: 1,
       });
     }
   }
   const merged = [...groups.values()];
-  for (const block of merged) block.people.sort((a, b) => a.handle.localeCompare(b.handle));
+  for (const block of merged) {
+    block.people.sort((a, b) => a.handle.localeCompare(b.handle));
+    block.rooms.sort();
+  }
   return merged;
 }
 

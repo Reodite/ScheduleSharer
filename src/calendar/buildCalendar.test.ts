@@ -6,7 +6,7 @@ import { buildCalendar, expandBlocks, layoutDay, mergeBlocks } from './buildCale
 import { commonFreeIntervals } from '../features/freeTime';
 import { deriveTerms, defaultTermKey } from '../features/terms';
 import { whoIsFreeNow } from '../features/whoIsFreeNow';
-import type { Person } from '../types';
+import type { DayCode, Person, Section } from '../types';
 
 const SPRING = 'View_Student_Registration_Saved_Schedule.xlsx';
 const FALL = 'View_Student_Registration_Saved_Schedule (1).xlsx';
@@ -83,6 +83,37 @@ describe('buildCalendar', () => {
     const monday = model.blocksByDay.get('Mon')!;
     const cogs = monday.find((b) => b.section.title === COGS)!;
     expect(cogs.people.map((p) => p.handle)).toEqual(['casey']);
+  });
+
+  it('collapses a lab listed in two rooms into ONE block naming both rooms', () => {
+    // Workday lists some labs (e.g. a chem lab spanning adjacent rooms) as two
+    // same-day/time meeting patterns differing only by room. That must render
+    // as one block, not overlapping duplicates.
+    const section: Section = {
+      id: 'chem-lab',
+      courseCode: 'CHEM_V 203',
+      title: 'Introduction to Organic Chemistry',
+      component: 'Laboratory',
+      instructors: ['Kayli Johnson'],
+      termStart: '2026-09-08',
+      termEnd: '2026-12-07',
+      meetings: [
+        { days: ['Thu'] as DayCode[], startMin: 570, endMin: 750, buildingCode: 'CHEM', room: 'C324', raw: '' },
+        { days: ['Thu'] as DayCode[], startMin: 570, endMin: 750, buildingCode: 'CHEM', room: 'C326', raw: '' },
+      ],
+    };
+    const sam: Person = {
+      id: 'p1',
+      handle: 'sam',
+      avatar: { kind: 'initials', initials: 'SA', color: '#43aa8b' },
+      schedule: { sections: [section], importedAt: '2026-07-07T00:00:00.000Z' },
+      updatedAt: '2026-07-07T00:00:00.000Z',
+      enabled: true,
+    };
+    const thu = mergeBlocks(expandBlocks([sam], null)).filter((b) => b.day === 'Thu');
+    expect(thu).toHaveLength(1);
+    expect(thu[0].rooms).toEqual(['C324', 'C326']);
+    expect(thu[0].people).toHaveLength(1); // one person, not double-counted
   });
 
   it('assigns side-by-side columns to overlapping different courses', () => {

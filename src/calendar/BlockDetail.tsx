@@ -18,6 +18,13 @@ export function BlockDetail({ block, onClose }: Props) {
   const s = block.section;
   const color = courseColor(s);
 
+  // A meeting listed in two rooms shows up as two same-day/time patterns; show
+  // each weekly slot once (rooms are surfaced in the "Where" row).
+  const meetingSlots = s.meetings.filter((m, i) => {
+    const key = `${m.days.join(' ')}|${m.startMin}|${m.endMin}`;
+    return s.meetings.findIndex((o) => `${o.days.join(' ')}|${o.startMin}|${o.endMin}` === key) === i;
+  });
+
   return (
     <div className="overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -43,7 +50,7 @@ export function BlockDetail({ block, onClose }: Props) {
           <div className="detail__row">
             <dt>Meets</dt>
             <dd>
-              {s.meetings.map((m, i) => (
+              {meetingSlots.map((m, i) => (
                 <div key={i} className="mono">
                   {m.days.join(' ')} {minutesToFullLabel(m.startMin)}–{minutesToFullLabel(m.endMin)}
                 </div>
@@ -51,14 +58,16 @@ export function BlockDetail({ block, onClose }: Props) {
             </dd>
           </div>
 
-          {(block.pattern.buildingName || block.pattern.room) && (
+          {(block.pattern.buildingName || block.rooms.length > 0) && (
             <div className="detail__row">
               <dt>Where</dt>
               <dd>
                 {block.pattern.buildingName}
                 {block.pattern.buildingCode ? ` (${block.pattern.buildingCode})` : ''}
                 {block.pattern.floor ? ` · floor ${block.pattern.floor}` : ''}
-                {block.pattern.room ? ` · room ${block.pattern.room}` : ''}
+                {block.rooms.length > 0
+                  ? ` · room${block.rooms.length > 1 ? 's' : ''} ${block.rooms.join(', ')}`
+                  : ''}
               </dd>
             </div>
           )}

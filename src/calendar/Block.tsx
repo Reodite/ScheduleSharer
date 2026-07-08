@@ -33,9 +33,10 @@ export function Block({ block, top, height, onClick }: Props) {
   const size = height < 42 ? 'xs' : height < 62 ? 'sm' : 'lg';
   const gapPct = 100 / block.cols;
 
+  const roomLabel = block.rooms.join('/');
   const loc = block.pattern.buildingCode
-    ? `${block.pattern.buildingCode} ${block.pattern.room ?? ''}`.trim()
-    : block.pattern.room ?? '';
+    ? `${block.pattern.buildingCode} ${roomLabel}`.trim()
+    : roomLabel;
 
   const style = {
     top,
