@@ -890,6 +890,9 @@ input[type='text'] {
   display: grid;
   grid-template-columns: repeat(10, 1fr);
   gap: 5px;
+  max-height: 208px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .avatar-grid button {

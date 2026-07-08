@@ -15,9 +15,32 @@ export const AVATAR_COLORS = [
   '#9bc53d', // lime
 ];
 
+// Deliberately simple, single-codepoint emoji: no ZWJ families, flags, or
+// skin-tone modifiers. They render consistently at tiny chip sizes across
+// platforms, and stay small in share links (compound emoji cost extra bytes).
+// The palette lives in the bundle, not in links — only a person's CHOSEN emoji
+// travels — so growing this list has no effect on link size.
 export const AVATAR_EMOJI = [
+  // animals
   '🦊', '🐻', '🐼', '🐸', '🦉', '🐙', '🦕', '🐯', '🐨', '🦋',
-  '🌵', '🍄', '🌊', '⚡', '🔥', '🌙', '🍙', '🧋', '🏀', '🎮',
+  '🦁', '🐮', '🐷', '🐵', '🐔', '🐧', '🐦', '🦆', '🦅', '🦇',
+  '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🐌', '🐞', '🐢', '🐍',
+  '🦎', '🦖', '🦑', '🦐', '🦀', '🐡', '🐠', '🐬', '🐳', '🦈',
+  '🐊', '🐅', '🦓', '🦍', '🐘', '🦏', '🐫', '🦒', '🦘', '🐰',
+  '🐭', '🦔', '🦦', '🦥', '🐇', '🦫', '🦡', '🦩', '🦜', '🐾',
+  // plants & weather
+  '🌵', '🍄', '🌲', '🌳', '🌴', '🌱', '🌿', '🍀', '🍁', '🍂',
+  '🌾', '🌷', '🌹', '🌺', '🌸', '🌼', '🌻', '💐', '🌊', '🌙',
+  '⚡', '🔥', '🌈', '⭐', '✨', '🌟', '❄️', '⛄', '💧', '🍃',
+  // food & drink
+  '🍎', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍒', '🍑', '🥭',
+  '🍍', '🥝', '🥑', '🌽', '🥕', '🍔', '🍟', '🍕', '🌮', '🍩',
+  '🍪', '🍰', '🧁', '🍫', '🍭', '🍦', '🍙', '🧋', '☕', '🍵',
+  // activities & objects
+  '🏀', '🎮', '⚽', '🏈', '⚾', '🎾', '🏐', '🎱', '🏓', '🎯',
+  '🎲', '🎨', '🎭', '🎸', '🎹', '🎺', '🥁', '🎧', '🎤', '🎬',
+  '📚', '🚀', '🛸', '🚁', '⛵', '🚲', '🛹', '🧩', '🎁', '🔮',
+  '💎', '👑', '🎈', '🎉', '🪁', '🧸', '🎳', '🏆', '🔑', '🎀',
 ];
 
 export function initialsFor(handle: string): string {
