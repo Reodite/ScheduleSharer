@@ -15,32 +15,33 @@ export const AVATAR_COLORS = [
   '#9bc53d', // lime
 ];
 
-// Deliberately simple, single-codepoint emoji: no ZWJ families, flags, or
-// skin-tone modifiers. They render consistently at tiny chip sizes across
-// platforms, and stay small in share links (compound emoji cost extra bytes).
-// The palette lives in the bundle, not in links — only a person's CHOSEN emoji
-// travels — so growing this list has no effect on link size.
+// One emoji = one identity. Every entry is a distinct character, persona,
+// passion, or signature vibe someone can claim as "theirs" — no near-duplicate
+// variants (one star, not three) and no interchangeable filler (assorted fruit,
+// leaves, trees, flowers). Kept to simple single-codepoint emoji (no ZWJ
+// families, flags, or skin tones) so they render consistently at chip size. The
+// palette ships in the bundle, not in links — only a person's CHOSEN emoji
+// travels — so its length has no effect on link size.
 export const AVATAR_EMOJI = [
-  // animals
-  '🦊', '🐻', '🐼', '🐸', '🦉', '🐙', '🦕', '🐯', '🐨', '🦋',
-  '🦁', '🐮', '🐷', '🐵', '🐔', '🐧', '🐦', '🦆', '🦅', '🦇',
-  '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🐌', '🐞', '🐢', '🐍',
-  '🦎', '🦖', '🦑', '🦐', '🦀', '🐡', '🐠', '🐬', '🐳', '🦈',
-  '🐊', '🐅', '🦓', '🦍', '🐘', '🦏', '🐫', '🦒', '🦘', '🐰',
-  '🐭', '🦔', '🦦', '🦥', '🐇', '🦫', '🦡', '🦩', '🦜', '🐾',
-  // plants & weather
-  '🌵', '🍄', '🌲', '🌳', '🌴', '🌱', '🌿', '🍀', '🍁', '🍂',
-  '🌾', '🌷', '🌹', '🌺', '🌸', '🌼', '🌻', '💐', '🌊', '🌙',
-  '⚡', '🔥', '🌈', '⭐', '✨', '🌟', '❄️', '⛄', '💧', '🍃',
-  // food & drink
-  '🍎', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍒', '🍑', '🥭',
-  '🍍', '🥝', '🥑', '🌽', '🥕', '🍔', '🍟', '🍕', '🌮', '🍩',
-  '🍪', '🍰', '🧁', '🍫', '🍭', '🍦', '🍙', '🧋', '☕', '🍵',
-  // activities & objects
-  '🏀', '🎮', '⚽', '🏈', '⚾', '🎾', '🏐', '🎱', '🏓', '🎯',
-  '🎲', '🎨', '🎭', '🎸', '🎹', '🎺', '🥁', '🎧', '🎤', '🎬',
-  '📚', '🚀', '🛸', '🚁', '⛵', '🚲', '🛹', '🧩', '🎁', '🔮',
-  '💎', '👑', '🎈', '🎉', '🪁', '🧸', '🎳', '🏆', '🔑', '🎀',
+  // spirit animals — each reads as its own character
+  '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐸', '🦉', '🦅', '🦇',
+  '🐺', '🦄', '🐙', '🐉', '🦖', '🐝', '🦋', '🐢', '🐍', '🦎',
+  '🦈', '🐬', '🐧', '🦩', '🦜', '🦚', '🦔', '🦥', '🦦', '🦫',
+  '🐘', '🦏', '🦒', '🦘', '🦓', '🦍', '🐊', '🦂', '🐞', '🐰',
+  '🐷', '🐴', '🐡',
+  // personas — pick who you are
+  '🤖', '👽', '👻', '🤡', '💀', '👾', '🎃', '🥷', '🤠', '🧙',
+  '🧚', '🧛', '🧟', '🧞', '🦸', '🦹', '🧜', '🧝',
+  // passions — sport, music, art, science, adventure
+  '🎮', '🎸', '🎹', '🎺', '🎷', '🥁', '🎧', '🎤', '🎨', '🎭',
+  '🎬', '📚', '🔭', '🔬', '🧠', '🚀', '🛸', '🏀', '⚽', '🏈',
+  '⚾', '🎾', '🏓', '🛹', '🚲', '⛵', '🏄', '🏂', '🎯', '🎲',
+  '🧩', '🎳', '🥊', '🎣',
+  // signature vibes, elements & objects
+  '🔥', '⚡', '🌙', '🌈', '⛄', '🌵', '🍄', '🌻', '🌊', '💎',
+  '👑', '🔮', '🎩', '🪄', '🧭', '⚓', '✨',
+  // foodie identities
+  '🍕', '🌮', '🍔', '🍜', '🍣', '🍩', '🧁', '🧋', '☕', '🥑',
 ];
 
 export function initialsFor(handle: string): string {
