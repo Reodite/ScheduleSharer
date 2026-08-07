@@ -3,7 +3,7 @@ import type { DayCode, MeetingPattern } from '../types';
 const DAY_CODES = new Set(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
 const DATE_RANGE_RE = /^(\d{4}-\d{2}-\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})$/;
 const TIME_RANGE_RE =
-  /^(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)$/i;
+  /^(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?$/i;
 const BUILDING_RE = /^(.*)\(([A-Z0-9]{2,6})\)$/;
 
 /**
@@ -18,9 +18,12 @@ export interface ParsedMeeting {
   endDate?: string;
 }
 
-/** '12:30', 'p.m.' -> 750. Handles noon (12 p.m. -> 720) and midnight (12 a.m. -> 0). */
+/** 
+ * '12:30', 'p.m.' -> 750. Handles noon (12 p.m. -> 720) and midnight (12 a.m. -> 0). 
+ * Also handles 24h format: '13:30' -> 810, '24:00' -> 0.
+ */
 export function toMinutes(hourStr: string, minStr: string | undefined, meridiem: string): number {
-  const h = parseInt(hourStr, 10) % 12;
+  const h = parseInt(hourStr, 10) % 24;
   const m = minStr ? parseInt(minStr, 10) : 0;
   const pm = /^p/i.test(meridiem);
   return (pm ? h + 12 : h) * 60 + m;
