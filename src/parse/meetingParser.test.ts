@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseMeetingPatterns, toMinutes } from './meetingParser';
 
 describe('toMinutes', () => {
+  // 12h format
   it('handles morning times', () => {
     expect(toMinutes('9', '30', 'a.m.')).toBe(570);
   });
@@ -12,6 +13,19 @@ describe('toMinutes', () => {
   it('handles noon and midnight', () => {
     expect(toMinutes('12', '00', 'p.m.')).toBe(720);
     expect(toMinutes('12', '00', 'a.m.')).toBe(0);
+  });
+  
+  // 24h format
+  it('handles morning times', () => {
+    expect(toMinutes('9', '30', '')).toBe(570);
+  });
+  it('handles afternoon times', () => {
+    expect(toMinutes('13', '30', '')).toBe(810);
+  });
+  it('handles noon and midnight', () => {
+    expect(toMinutes('12', '00', '')).toBe(720);
+    expect(toMinutes('0', '00', '')).toBe(0);
+    expect(toMinutes('24', '00', '')).toBe(0);
   });
 });
 

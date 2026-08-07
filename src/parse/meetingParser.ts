@@ -23,8 +23,11 @@ export interface ParsedMeeting {
  * Also handles 24h format: '13:30' -> 810, '24:00' -> 0.
  */
 export function toMinutes(hourStr: string, minStr: string | undefined, meridiem: string): number {
-  const h = parseInt(hourStr, 10) % 24;
+  let h = parseInt(hourStr, 10) % 24;
   const m = minStr ? parseInt(minStr, 10) : 0;
+  const mer = !!meridiem.trim();
+  if (!mer) return h * 60 + m;
+  h %= 12;
   const pm = /^p/i.test(meridiem);
   return (pm ? h + 12 : h) * 60 + m;
 }
@@ -67,6 +70,7 @@ function parseOnePattern(raw: string): ParsedMeeting | null {
 
     const timeMatch = segment.match(TIME_RANGE_RE);
     if (timeMatch) {
+      console.log(timeMatch)
       pattern.startMin = toMinutes(timeMatch[1], timeMatch[2], timeMatch[3]);
       pattern.endMin = toMinutes(timeMatch[4], timeMatch[5], timeMatch[6]);
       continue;
