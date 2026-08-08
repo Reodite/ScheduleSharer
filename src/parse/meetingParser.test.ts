@@ -13,6 +13,11 @@ describe('toMinutes', () => {
     expect(toMinutes('12', '00', 'p.m.')).toBe(720);
     expect(toMinutes('12', '00', 'a.m.')).toBe(0);
   });
+  it('handles 24h times when no meridiem is given', () => {
+    expect(toMinutes('13', '30', undefined)).toBe(810);
+    expect(toMinutes('9', '00', undefined)).toBe(540);
+    expect(toMinutes('24', '00', undefined)).toBe(0);
+  });
 });
 
 describe('parseMeetingPatterns', () => {

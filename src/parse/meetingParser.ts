@@ -18,15 +18,23 @@ export interface ParsedMeeting {
   endDate?: string;
 }
 
-/** 
- * '12:30', 'p.m.' -> 750. Handles noon (12 p.m. -> 720) and midnight (12 a.m. -> 0). 
- * Also handles 24h format: '13:30' -> 810, '24:00' -> 0.
+/**
+ * '12:30', 'p.m.' -> 750. Handles noon (12 p.m. -> 720) and midnight (12 a.m. -> 0).
+ * No meridiem = 24h format: '13:30' -> 810, '24:00' -> 0.
  */
-export function toMinutes(hourStr: string, minStr: string | undefined, meridiem: string): number {
-  const h = parseInt(hourStr, 10) % 24;
-  const m = minStr ? parseInt(minStr, 10) : 0;
-  const pm = /^p/i.test(meridiem);
-  return (pm ? h + 12 : h) * 60 + m;
+export function toMinutes(
+  hourStr: string,
+  minStr: string | undefined,
+  meridiem: string | undefined,
+): number {
+  let h = parseInt(hourStr, 10);
+  if (meridiem) {
+    h %= 12;
+    if (/^p/i.test(meridiem)) h += 12;
+  } else {
+    h %= 24;
+  }
+  return h * 60 + (minStr ? parseInt(minStr, 10) : 0);
 }
 
 /**
