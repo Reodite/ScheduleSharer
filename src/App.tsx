@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { DayCode, Person, Schedule } from '../src/types';
 import { useStore } from './state/store';
 import { importIntoLibrary } from './state/library';
@@ -19,6 +19,12 @@ import type { ProfileDraft } from './ui/ProfileModal';
 import { ScheduleManager } from './ui/ScheduleManager';
 import { useToast } from './ui/Toast';
 import { dayCodeOf, minutesToFullLabel, toISODate } from './util/time';
+
+// Own chunk: the map page (and the campus geojson it fetches) never load
+// unless someone actually opens the map.
+const MapPage = lazy(() => import('./map/MapPage'));
+
+const MAP_HASH = '#map';
 
 function useNow(): Date {
   const [now, setNow] = useState(() => new Date());
@@ -43,6 +49,24 @@ export default function App() {
     const d = dayCodeOf(new Date());
     return d === 'Sat' || d === 'Sun' ? 'Mon' : d;
   });
+
+  // The map lives on its own hash route so back/forward work everywhere.
+  const [showMap, setShowMap] = useState(() => window.location.hash === MAP_HASH);
+  const mapOpenedHere = useRef(false);
+  useEffect(() => {
+    const sync = () => setShowMap(window.location.hash === MAP_HASH);
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
+  function openMap() {
+    mapOpenedHere.current = true;
+    window.location.hash = MAP_HASH;
+  }
+  function closeMap() {
+    // opened via the button: back restores the previous URL (share hash incl.)
+    if (mapOpenedHere.current) window.history.back();
+    else window.location.hash = '';
+  }
 
   // one-time boot feedback for an incoming share link
   const bootToastShown = useRef(false);
@@ -148,6 +172,32 @@ export default function App() {
         </button>
         <div className="topbar__spacer" />
         <TermSwitcher terms={terms} selected={selectedTermKey} onSelect={setTermKey} />
+        {!empty && (
+          <button
+            type="button"
+            className="btn btn--icon map-open-btn"
+            title="See where everyone is on the campus map"
+            aria-label="Open campus map"
+            onClick={openMap}
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" />
+              <path d="M9 4v14" />
+              <path d="M15 6v14" />
+            </svg>
+            <span className="map-open-btn__label">Map</span>
+          </button>
+        )}
         <ShareBar />
       </header>
 
@@ -220,6 +270,11 @@ export default function App() {
         </div>
       )}
 
+      {showMap && (
+        <Suspense fallback={<div className="map-suspense">loading map…</div>}>
+          <MapPage onClose={closeMap} />
+        </Suspense>
+      )}
       {showManager && <ScheduleManager onClose={() => setShowManager(false)} />}
       {draft && (
         <ProfileModal
