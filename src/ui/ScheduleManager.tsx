@@ -31,6 +31,7 @@ export function ScheduleManager({ onClose }: Props) {
         {library.groups.map((g) => {
           const active = g.groupId === library.activeId;
           const onlySchedule = library.groups.length === 1;
+          const full = library.groups.length >= MAX_GROUPS;
           return (
             <div key={g.groupId} className={`sched-row${active ? ' sched-row--active' : ''}`}>
               <button
@@ -88,6 +89,19 @@ export function ScheduleManager({ onClose }: Props) {
                   }}
                 >
                   ✎
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--icon"
+                  disabled={full}
+                  title={
+                    full
+                      ? `Limit of ${MAX_GROUPS} schedules — delete one first`
+                      : 'Duplicate — same people, but a new identity: its share links are independent of the original'
+                  }
+                  onClick={() => dispatch({ type: 'duplicateGroup', groupId: g.groupId })}
+                >
+                  ⧉
                 </button>
                 <button
                   type="button"
