@@ -275,6 +275,30 @@ input[type='text'] {
   line-height: 1;
 }
 
+.map-open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-open-btn svg {
+  flex-shrink: 0;
+}
+
+/* full-screen placeholder while the lazy map chunk downloads */
+.map-suspense {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
 /* ---------- layout ---------- */
 
 .layout {
@@ -1168,5 +1192,9 @@ input[type='text'] {
 
   .person__actions {
     opacity: 1;
+  }
+
+  .map-open-btn__label {
+    display: none;
   }
 }

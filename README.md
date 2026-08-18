@@ -22,6 +22,12 @@ share link's URL hash, and persists locally in your browser.
 - **Profiles** — emoji, colored initials, or an uploaded photo (photos stay on-device and in JSON
   exports; share links downgrade them to initials to keep URLs short).
 - **JSON export/import** — full-fidelity backup path (includes photos), for when a link won't do.
+- **Campus map** — the map button opens a pan/zoom map of UBC Vancouver (own page at `#map`, lazy
+  loaded so the main page never downloads the geodata). Buildings with friends in class light up
+  with avatar pins; clicking one reveals who's inside, their course, and room. **Live** mode tracks
+  the current day and time; **Free** mode has a big time slider + day rail to scrub the whole week.
+  Building shapes come from [Reodite/ubc-unified-data](https://github.com/Reodite/ubc-unified-data);
+  regenerate `public/map/ubcv-campus.json` with `npm run build:map-data`.
 
 ## How to add your schedule
 
