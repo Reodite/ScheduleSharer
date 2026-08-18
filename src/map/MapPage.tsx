@@ -196,6 +196,16 @@ export default function MapPage({ onClose }: Props) {
   const [freeMin, setFreeMin] = useState(() => clampToSlider(minutesNow(new Date())));
   const [selected, setSelected] = useState<string | null>(null);
 
+  // the map is a fixed overlay — lock the page's scrollbar away while open,
+  // otherwise the calendar behind it keeps a scrollbar that scrolls nothing
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   // live mode ticks on the half-minute so classes flip on time
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
