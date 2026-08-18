@@ -185,6 +185,16 @@
   height: 100%;
 }
 
+/* The map artwork (and its avatar pins) dissolves out over its bottom stretch
+   instead of stopping at the footer boundary — masking the content is the only
+   way to avoid a hard edge, since the page and footer share the same ink.
+   Zoom buttons and the building popup are siblings, so they stay crisp. */
+.map-canvas svg,
+.map-markers {
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 110px), transparent);
+  mask-image: linear-gradient(#000 calc(100% - 110px), transparent);
+}
+
 .map-coast {
   fill: none;
   stroke: rgba(110, 168, 254, 0.35);
@@ -503,32 +513,14 @@
 
 /* ---------- footer: live bar / time slider ---------- */
 
+/* No border or background of its own: the map artwork above fades out into
+   the shared page ink (see the mask on .map-canvas svg), so the footer reads
+   as one continuous surface in both live and free mode. */
 .mappage__foot {
-  position: relative;
   padding: 10px 16px 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-/* No hard top border — the panel tint fades in gradually instead, starting
-   well up the map and reaching full strength at the cards' vertical midpoint
-   (49px = bottom padding + half the 74px cards). pointer-events: none keeps
-   the map pannable under the overlaid part of the fade. */
-.mappage__foot::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  top: -56px;
-  background: linear-gradient(to top, rgba(11, 16, 27, 0.85) 49px, rgba(11, 16, 27, 0));
-  pointer-events: none;
-}
-
-.mappage__foot > * {
-  position: relative;
-  z-index: 1;
 }
 
 .map-livebar {
