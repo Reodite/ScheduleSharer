@@ -740,6 +740,11 @@
     gap: 10px;
   }
 
+  /* 16 hourly labels don't fit on a phone — keep the every-3-hours ones */
+  .map-tick__label--minor {
+    display: none;
+  }
+
   .map-avail {
     width: 158px;
     max-height: 36%;

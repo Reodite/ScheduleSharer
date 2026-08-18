@@ -23,10 +23,11 @@ function hourLabel(min: number): string {
   return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
-// hourly ticks under the slider, a reference time every 3 hours
-const SLIDER_TICKS: { min: number; label?: string }[] = [];
+// hourly ticks under the slider, each labeled with its time; on narrow
+// screens CSS keeps only the "major" every-3-hours labels (16 don't fit)
+const SLIDER_TICKS: { min: number; label: string; major: boolean }[] = [];
 for (let m = SLIDER_MIN; m <= SLIDER_MAX; m += 60) {
-  SLIDER_TICKS.push({ min: m, label: (m / 60 - 7) % 3 === 0 ? hourLabel(m) : undefined });
+  SLIDER_TICKS.push({ min: m, label: hourLabel(m), major: (m / 60 - 7) % 3 === 0 });
 }
 const WHEEL_DAYS = DAY_ORDER.slice(0, 5); // the free-mode wheel is weekdays only
 const WHEEL_ITEM_PX = 24;
@@ -387,10 +388,10 @@ export default function MapPage({ onClose }: Props) {
                 {SLIDER_TICKS.map((t) => (
                   <span
                     key={t.min}
-                    className={`map-tick${t.label ? ' map-tick--major' : ''}`}
+                    className={`map-tick${t.major ? ' map-tick--major' : ''}`}
                     style={{ left: `${((t.min - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100}%` }}
                   >
-                    {t.label && <span className="map-tick__label">{t.label}</span>}
+                    <span className={`map-tick__label${t.major ? '' : ' map-tick__label--minor'}`}>{t.label}</span>
                   </span>
                 ))}
               </div>
