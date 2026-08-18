@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deleteFromLibrary, importIntoLibrary } from './library';
+import { deleteFromLibrary, duplicateInLibrary, importIntoLibrary } from './library';
 import type { GroupState, Library, Person } from '../types';
 import { MAX_GROUPS, SCHEMA_VERSION } from '../types';
 
@@ -63,6 +63,39 @@ describe('importIntoLibrary', () => {
     const update = importIntoLibrary(start, group('g3', 'Crew 3 renamed', [person('z', 'zoe')]));
     expect(update.outcome).toBe('updated');
     expect(update.lib.groups.find((g) => g.groupId === 'g3')!.people).toHaveLength(1);
+  });
+});
+
+describe('duplicateInLibrary', () => {
+  it('clones people and data under a fresh groupId, inserts after the source, activates the copy', () => {
+    const start = lib([group('g1', 'Crew', [person('a', 'alice'), person('b', 'bob')]), group('g2', 'Other')]);
+    const next = duplicateInLibrary(start, 'g1');
+    expect(next.groups).toHaveLength(3);
+    const copy = next.groups[1]; // right after the source
+    expect(copy.groupId).not.toBe('g1');
+    expect(copy.name).toBe('Crew (copy)');
+    expect(copy.people).toHaveLength(2);
+    expect(copy.people.map((p) => p.id)).toEqual(['a', 'b']); // person identity kept
+    expect(copy.people[0]).not.toBe(start.groups[0].people[0]); // but not shared objects
+    expect(next.activeId).toBe(copy.groupId);
+    expect(next.groups[0]).toBe(start.groups[0]); // source untouched
+  });
+
+  it('a share-link import into the copy leaves the original alone', () => {
+    const start = duplicateInLibrary(lib([group('g1', 'Crew', [person('a', 'alice')])]), 'g1');
+    const copyId = start.activeId;
+    const incoming = group(copyId, 'Crew (copy)', [person('b', 'bob')]);
+    const { lib: next, outcome } = importIntoLibrary(start, incoming);
+    expect(outcome).toBe('updated');
+    expect(next.groups.find((g) => g.groupId === copyId)!.people).toHaveLength(2);
+    expect(next.groups.find((g) => g.groupId === 'g1')!.people).toHaveLength(1);
+  });
+
+  it('no-op at the cache cap or for an unknown id', () => {
+    const fullLib = lib(Array.from({ length: MAX_GROUPS }, (_, i) => group(`g${i}`, `Crew ${i}`)));
+    expect(duplicateInLibrary(fullLib, 'g0')).toBe(fullLib);
+    const start = lib([group('g1', 'Crew')]);
+    expect(duplicateInLibrary(start, 'nope')).toBe(start);
   });
 });
 

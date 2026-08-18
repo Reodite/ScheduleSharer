@@ -275,6 +275,16 @@ input[type='text'] {
   line-height: 1;
 }
 
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+  border-color: var(--line-strong);
+  transform: none;
+}
+
 .map-open-btn {
   display: inline-flex;
   align-items: center;

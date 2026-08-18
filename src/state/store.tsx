@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useReducer } from 'react
 import type { ReactNode } from 'react';
 import type { Avatar, GroupState, Library, Person, Schedule } from '../types';
 import { emptyGroup, MAX_GROUPS } from '../types';
-import { activeGroup, deleteFromLibrary, importIntoLibrary } from './library';
+import { activeGroup, deleteFromLibrary, duplicateInLibrary, importIntoLibrary } from './library';
 import type { ImportOutcome } from './library';
 import { normalizeGroup } from './normalize';
 import { decodeShareHash, ShareDecodeError } from './shareLink';
@@ -23,6 +23,7 @@ export type Action =
   | { type: 'switchGroup'; groupId: string }
   | { type: 'renameGroup'; groupId: string; name: string }
   | { type: 'deleteGroup'; groupId: string }
+  | { type: 'duplicateGroup'; groupId: string }
   | { type: 'createGroup'; name: string }
   | { type: 'importIncoming'; incoming: GroupState };
 
@@ -77,6 +78,8 @@ function reducer(lib: Library, action: Action): Library {
       };
     case 'deleteGroup':
       return deleteFromLibrary(lib, action.groupId);
+    case 'duplicateGroup':
+      return duplicateInLibrary(lib, action.groupId);
     case 'createGroup': {
       if (lib.groups.length >= MAX_GROUPS) return lib;
       const fresh = emptyGroup(action.name);
