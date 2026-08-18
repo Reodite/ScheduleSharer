@@ -16,6 +16,18 @@ type Mode = 'live' | 'free';
 
 const SLIDER_MIN = 7 * 60;
 const SLIDER_MAX = 22 * 60;
+
+/** 780 -> '1 PM' — compact hour label for the slider tick rail */
+function hourLabel(min: number): string {
+  const h = min / 60;
+  return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
+// hourly ticks under the slider, a reference time every 3 hours
+const SLIDER_TICKS: { min: number; label?: string }[] = [];
+for (let m = SLIDER_MIN; m <= SLIDER_MAX; m += 60) {
+  SLIDER_TICKS.push({ min: m, label: (m / 60 - 7) % 3 === 0 ? hourLabel(m) : undefined });
+}
 const WHEEL_DAYS = DAY_ORDER.slice(0, 5); // the free-mode wheel is weekdays only
 const WHEEL_ITEM_PX = 24;
 
@@ -32,6 +44,10 @@ function weekdayOf(d: Date): DayCode {
 function DayWheel({ day, onChange }: { day: DayCode; onChange: (d: DayCode) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const raf = useRef(0);
+  const dayRef = useRef(day);
+  dayRef.current = day;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   // keep the wheel centered on the selected day (mode switches, external sets)
   useEffect(() => {
@@ -40,6 +56,34 @@ function DayWheel({ day, onChange }: { day: DayCode; onChange: (d: DayCode) => v
     const top = idx * WHEEL_ITEM_PX;
     if (Math.abs(el.scrollTop - top) > 1) el.scrollTo({ top });
   }, [day]);
+
+  // Desktop mouse wheels scroll ~100px per notch; with 24px rows and mandatory
+  // snap that flings the picker across several days and fights the recenter
+  // effect above. Take over wheel input and step whole days instead — touch
+  // scrolling is unaffected. Native listener because React's onWheel is
+  // passive, so preventDefault would be ignored.
+  useEffect(() => {
+    const el = ref.current!;
+    let acc = 0;
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      let steps: number;
+      if (e.deltaMode !== WheelEvent.DOM_DELTA_PIXEL || Math.abs(e.deltaY) >= 60) {
+        steps = Math.sign(e.deltaY); // discrete wheel notch: one day per tick
+        acc = 0;
+      } else {
+        acc += e.deltaY; // fine-grained trackpad deltas: accumulate
+        steps = Math.trunc(acc / WHEEL_ITEM_PX);
+        acc -= steps * WHEEL_ITEM_PX;
+      }
+      if (steps === 0) return;
+      const idx = Math.max(0, WHEEL_DAYS.indexOf(dayRef.current));
+      const next = Math.min(WHEEL_DAYS.length - 1, Math.max(0, idx + steps));
+      if (next !== idx) onChangeRef.current(WHEEL_DAYS[next]);
+    }
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   function onScroll() {
     cancelAnimationFrame(raf.current);
@@ -255,7 +299,8 @@ export default function MapPage({ onClose }: Props) {
         ) : (
           <div className="map-timerow">
             <DayWheel day={freeDay} onChange={setFreeDay} />
-            <div className="map-timecol">
+            <div className="map-timecard">
+              <div className="map-timecard__time">{timeLabel}</div>
               <input
                 type="range"
                 className="map-slider"
@@ -266,10 +311,16 @@ export default function MapPage({ onClose }: Props) {
                 onChange={(e) => setFreeMin(Number(e.target.value))}
                 aria-label="Time of day"
               />
-              <div className="map-timemeta">
-                <span aria-hidden>{minutesToFullLabel(SLIDER_MIN)}</span>
-                <span className="map-timemeta__sel">{timeLabel}</span>
-                <span aria-hidden>{minutesToFullLabel(SLIDER_MAX)}</span>
+              <div className="map-ticks" aria-hidden>
+                {SLIDER_TICKS.map((t) => (
+                  <span
+                    key={t.min}
+                    className={`map-tick${t.label ? ' map-tick--major' : ''}`}
+                    style={{ left: `${((t.min - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100}%` }}
+                  >
+                    {t.label && <span className="map-tick__label">{t.label}</span>}
+                  </span>
+                ))}
               </div>
             </div>
           </div>

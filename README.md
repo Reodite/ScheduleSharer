@@ -1,4 +1,4 @@
-# ScheduleSharer
+# Reodite Schedules
 
 One master weekly calendar for your whole friend group. Everyone drops in their UBC Workday
 schedule export, picks a handle + avatar, and shares a single link — the app overlays every
@@ -33,7 +33,7 @@ share link's URL hash, and persists locally in your browser.
 
 1. In Workday: **Academics → Registration & Courses → View Saved Schedule**, then export to
    Excel (the `.xlsx` download).
-2. Drop the file on ScheduleSharer, pick a handle + avatar.
+2. Drop the file on Reodite Schedules, pick a handle + avatar.
 3. **Copy share link** → paste it in the group chat. Friends open it, add theirs, and re-share.
 
 ## Development
