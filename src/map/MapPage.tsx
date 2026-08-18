@@ -9,6 +9,7 @@ import { loadCampusMap } from './mapData';
 import type { CampusMapData } from './mapData';
 import { occupancyAt } from './occupancy';
 import { CampusMap } from './CampusMap';
+import { AvatarChip } from '../avatar/AvatarChip';
 import './map.css';
 
 type Mode = 'live' | 'free';
@@ -150,13 +151,8 @@ export default function MapPage({ onClose }: Props) {
   const hasSchedules = group.people.some((p) => p.enabled && p.schedule);
   const timeLabel = minutesToFullLabel(probeMin);
 
-  const status = !hasSchedules
-    ? 'no schedules on the calendar yet — add some from the main page'
-    : occ.busyCount === 0
-      ? mode === 'live'
-        ? "no one's in class right now"
-        : `no one's in class ${probeDay} at ${timeLabel}`
-      : null;
+  // when nobody is in class the "available" card already tells the story
+  const status = hasSchedules ? null : 'no schedules on the calendar yet — add some from the main page';
 
   return (
     <div className="mappage">
@@ -214,6 +210,24 @@ export default function MapPage({ onClose }: Props) {
             ) : (
               <span>loading campus…</span>
             )}
+          </div>
+        )}
+
+        {data && occ.free.length > 0 && (
+          <div className="map-avail">
+            <div className="map-avail__title">
+              <span className="map-avail__dot" />
+              available · {occ.free.length}
+            </div>
+            {occ.free.map(({ person, nextStartMin }) => (
+              <div key={person.id} className="map-avail__row">
+                <AvatarChip avatar={person.avatar} size={20} />
+                <span className="map-avail__name">{names.get(person.id) ?? person.handle}</span>
+                <span className="map-avail__til">
+                  {nextStartMin != null ? `til ${minutesToFullLabel(nextStartMin)}` : 'all day'}
+                </span>
+              </div>
+            ))}
           </div>
         )}
 

@@ -100,6 +100,70 @@
   font-size: 12px;
 }
 
+/* ---------- available (free people) card ---------- */
+
+.map-avail {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 15;
+  width: 196px;
+  max-height: 46%;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 10px 12px;
+}
+
+.map-avail__title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+}
+
+.map-avail__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--free);
+  box-shadow: 0 0 8px rgba(67, 217, 132, 0.6);
+}
+
+.map-avail__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.map-avail__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-avail__til {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--free);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 /* ---------- the map itself ---------- */
 
 .map-canvas {
@@ -607,6 +671,16 @@
 
   .map-timerow {
     gap: 10px;
+  }
+
+  .map-avail {
+    width: 158px;
+    max-height: 36%;
+    padding: 8px 10px;
+  }
+
+  .map-avail__name {
+    font-size: 11.5px;
   }
 
   .mappage__foot {
