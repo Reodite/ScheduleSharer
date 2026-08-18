@@ -504,12 +504,31 @@
 /* ---------- footer: live bar / time slider ---------- */
 
 .mappage__foot {
-  /* no hard top border — the panel tint fades in instead */
-  background: linear-gradient(rgba(11, 16, 27, 0), rgba(11, 16, 27, 0.85) 30px);
+  position: relative;
   padding: 10px 16px 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* No hard top border — the panel tint fades in gradually instead, starting
+   well up the map and reaching full strength at the cards' vertical midpoint
+   (49px = bottom padding + half the 74px cards). pointer-events: none keeps
+   the map pannable under the overlaid part of the fade. */
+.mappage__foot::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: -56px;
+  background: linear-gradient(to top, rgba(11, 16, 27, 0.85) 49px, rgba(11, 16, 27, 0));
+  pointer-events: none;
+}
+
+.mappage__foot > * {
+  position: relative;
+  z-index: 1;
 }
 
 .map-livebar {
