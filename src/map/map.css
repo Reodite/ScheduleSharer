@@ -2,6 +2,12 @@
    Campus map page — same night-timetable theme, own lazy chunk.
    ============================================================ */
 
+.mappage,
+.mappage * {
+  /* kill the mobile browsers' translucent tap-flash on buildings/markers */
+  -webkit-tap-highlight-color: transparent;
+}
+
 .mappage {
   position: fixed;
   inset: 0;
@@ -231,6 +237,7 @@
   max-width: calc(100vw - 24px);
   max-height: 300px;
   overflow-y: auto;
+  scrollbar-gutter: stable; /* the scrollbar must never sit on top of row text */
   background: var(--panel);
   border: 1px solid var(--line-strong);
   border-radius: 12px;
@@ -326,14 +333,6 @@
   text-overflow: ellipsis;
 }
 
-.map-popup__time {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-faint);
-  flex-shrink: 0;
-  text-align: right;
-}
-
 /* ---------- zoom + recenter controls ---------- */
 
 .map-zoom {
@@ -361,39 +360,71 @@
   border-color: var(--accent);
 }
 
-/* ---------- day rail (free mode) ---------- */
+/* ---------- day wheel (free mode) ---------- */
 
-.map-dayrail {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.map-daywheel {
+  position: relative;
+  flex-shrink: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--panel-raise);
+  padding: 0 4px;
 }
 
-.map-dayrail button {
-  width: 38px;
-  padding: 6px 0;
-  border-radius: 7px;
-  border: 1px solid var(--line-strong);
-  background: var(--panel-raise);
-  color: var(--text-dim);
+.map-daywheel::before,
+.map-daywheel::after {
+  /* center-row guides */
+  content: '';
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  height: 1px;
+  background: var(--line-strong);
+  pointer-events: none;
+}
+
+.map-daywheel::before {
+  top: 24px;
+}
+
+.map-daywheel::after {
+  bottom: 24px;
+}
+
+.map-daywheel__scroll {
+  height: 72px; /* 3 × 24px rows, selected snaps to the middle */
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent);
+  mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent);
+}
+
+.map-daywheel__scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.map-daywheel__pad {
+  height: 24px;
+}
+
+.map-daywheel__item {
+  display: block;
+  width: 44px;
+  height: 24px;
+  padding: 0;
+  scroll-snap-align: center;
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
 }
 
-.map-dayrail button:hover {
-  border-color: var(--accent);
-}
-
-.map-dayrail button.sel {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
+.map-daywheel__item.sel {
+  color: var(--accent);
 }
 
 /* ---------- footer: live bar / time slider ---------- */
@@ -440,19 +471,15 @@
   gap: 14px;
 }
 
-.map-timerow__label {
-  font-family: var(--font-mono);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--accent);
-  width: 86px;
-  flex-shrink: 0;
-  text-align: right;
-  white-space: nowrap;
+.map-timecol {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .map-slider {
-  flex: 1;
+  width: 100%;
   -webkit-appearance: none;
   appearance: none;
   height: 34px;
@@ -496,14 +523,22 @@
   box-shadow: 0 2px 10px rgba(2, 6, 16, 0.6);
 }
 
-.map-hours {
+.map-timemeta {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  padding-left: 100px;
+  margin-top: 2px;
   font-family: var(--font-mono);
   font-size: 9.5px;
   color: var(--text-faint);
   user-select: none;
+}
+
+.map-timemeta__sel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
 }
 
 /* ---------- elsewhere strip ---------- */
@@ -570,19 +605,8 @@
     transform: none;
   }
 
-  .map-dayrail button {
-    width: 32px;
-    font-size: 9px;
-    padding: 5px 0;
-  }
-
-  .map-timerow__label {
-    width: 68px;
-    font-size: 13px;
-  }
-
-  .map-hours {
-    padding-left: 82px;
+  .map-timerow {
+    gap: 10px;
   }
 
   .mappage__foot {

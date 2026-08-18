@@ -39,7 +39,10 @@ export function CampusMap({ data, occupied, names, selected, onSelect }: Props) 
 
   // active pointers (for pan + pinch) and drag-vs-click discrimination
   const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const startPos = useRef<{ x: number; y: number } | null>(null);
   const movedRef = useRef(false);
+  /** finger taps jitter several px — only a real drag suppresses the tap */
+  const TAP_SLOP = 9;
 
   const byCode = useMemo(() => new Map(data.buildings.map((b) => [b.code, b])), [data]);
   const shapes = useMemo(() => data.buildings.map((b) => ({ b, d: buildingPath(b) })), [data]);
@@ -133,11 +136,15 @@ export function CampusMap({ data, occupied, names, selected, onSelect }: Props) 
   }
 
   function onPointerDown(e: React.PointerEvent) {
-    // popup interactions shouldn't start a pan
-    if ((e.target as Element).closest('[data-popup]')) return;
+    // popup and zoom-button interactions shouldn't start a pan
+    if ((e.target as Element).closest('[data-popup]') || (e.target as Element).closest('.map-zoom')) return;
     wrapRef.current!.setPointerCapture(e.pointerId);
-    pointers.current.set(e.pointerId, localPoint(e));
-    if (pointers.current.size === 1) movedRef.current = false;
+    const pt = localPoint(e);
+    pointers.current.set(e.pointerId, pt);
+    if (pointers.current.size === 1) {
+      movedRef.current = false;
+      startPos.current = pt;
+    }
     setPanning(true);
   }
 
@@ -149,7 +156,8 @@ export function CampusMap({ data, occupied, names, selected, onSelect }: Props) 
     if (pointers.current.size === 1) {
       const dx = pt.x - prev.x;
       const dy = pt.y - prev.y;
-      if (Math.abs(dx) + Math.abs(dy) > 3) movedRef.current = true;
+      const start = startPos.current;
+      if (start && Math.hypot(pt.x - start.x, pt.y - start.y) > TAP_SLOP) movedRef.current = true;
       setView((v) => (v ? { ...v, tx: v.tx + dx, ty: v.ty + dy } : v));
     } else if (pointers.current.size === 2) {
       movedRef.current = true;
@@ -269,13 +277,9 @@ export function CampusMap({ data, occupied, names, selected, onSelect }: Props) 
                       <span className="map-popup__course">
                         {courseLabel(section)}
                         {pattern.room ? ` · Room ${pattern.room}` : ''}
+                        {` · til ${minutesToFullLabel(pattern.endMin)}`}
                       </span>
                     </div>
-                    <span className="map-popup__time">
-                      til
-                      <br />
-                      {minutesToFullLabel(pattern.endMin)}
-                    </span>
                   </div>
                 ))
               )}
