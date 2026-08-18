@@ -504,9 +504,8 @@
 /* ---------- footer: live bar / time slider ---------- */
 
 .mappage__foot {
-  border-top: 1px solid var(--line);
-  background: rgba(11, 16, 27, 0.85);
-  backdrop-filter: blur(8px);
+  /* no hard top border — the panel tint fades in instead */
+  background: linear-gradient(rgba(11, 16, 27, 0), rgba(11, 16, 27, 0.85) 30px);
   padding: 10px 16px 12px;
   display: flex;
   flex-direction: column;
@@ -554,8 +553,9 @@
   border: 1px solid var(--line-strong);
   border-radius: 9px;
   background: var(--panel-raise);
-  /* symmetric padding keeps the slider dead-center vertically */
-  padding: 22px 16px;
+  /* symmetric padding keeps the slider dead-center vertically; 19px lands
+     the card at 74px total — the same height as the day wheel beside it */
+  padding: 19px 16px;
 }
 
 /* selected time: its own card, straddling the timecard's top edge */
