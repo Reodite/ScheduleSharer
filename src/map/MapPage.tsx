@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DayCode } from '../types';
 import { DAY_ORDER } from '../types';
 import { useStore } from '../state/store';
@@ -9,16 +9,69 @@ import { loadCampusMap } from './mapData';
 import type { CampusMapData } from './mapData';
 import { occupancyAt } from './occupancy';
 import { CampusMap } from './CampusMap';
+import { AvatarChip } from '../avatar/AvatarChip';
 import './map.css';
 
 type Mode = 'live' | 'free';
 
 const SLIDER_MIN = 7 * 60;
 const SLIDER_MAX = 22 * 60;
-const HOUR_MARKS = ['8 AM', '10', '12 PM', '2', '4', '6', '8 PM', '10'];
+const WHEEL_DAYS = DAY_ORDER.slice(0, 5); // the free-mode wheel is weekdays only
+const WHEEL_ITEM_PX = 24;
 
 function clampToSlider(min: number): number {
   return Math.min(SLIDER_MAX, Math.max(SLIDER_MIN, Math.round(min / 5) * 5));
+}
+
+function weekdayOf(d: Date): DayCode {
+  const day = dayCodeOf(d);
+  return day === 'Sat' || day === 'Sun' ? 'Mon' : day;
+}
+
+/** iOS-picker-style vertical scroll wheel for Mon–Fri */
+function DayWheel({ day, onChange }: { day: DayCode; onChange: (d: DayCode) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const raf = useRef(0);
+
+  // keep the wheel centered on the selected day (mode switches, external sets)
+  useEffect(() => {
+    const el = ref.current!;
+    const idx = Math.max(0, WHEEL_DAYS.indexOf(day));
+    const top = idx * WHEEL_ITEM_PX;
+    if (Math.abs(el.scrollTop - top) > 1) el.scrollTo({ top });
+  }, [day]);
+
+  function onScroll() {
+    cancelAnimationFrame(raf.current);
+    raf.current = requestAnimationFrame(() => {
+      const el = ref.current;
+      if (!el) return;
+      const idx = Math.min(WHEEL_DAYS.length - 1, Math.max(0, Math.round(el.scrollTop / WHEEL_ITEM_PX)));
+      if (WHEEL_DAYS[idx] !== day) onChange(WHEEL_DAYS[idx]);
+    });
+  }
+
+  return (
+    <div className="map-daywheel" aria-label="Day of week">
+      <div ref={ref} className="map-daywheel__scroll" onScroll={onScroll}>
+        <div className="map-daywheel__pad" />
+        {WHEEL_DAYS.map((d) => (
+          <button
+            key={d}
+            type="button"
+            className={`map-daywheel__item${d === day ? ' sel' : ''}`}
+            onClick={() => {
+              onChange(d);
+              ref.current?.scrollTo({ top: WHEEL_DAYS.indexOf(d) * WHEEL_ITEM_PX, behavior: 'smooth' });
+            }}
+          >
+            {d}
+          </button>
+        ))}
+        <div className="map-daywheel__pad" />
+      </div>
+    </div>
+  );
 }
 
 interface Props {
@@ -33,7 +86,7 @@ export default function MapPage({ onClose }: Props) {
   const [retry, setRetry] = useState(0);
 
   const [mode, setMode] = useState<Mode>('live');
-  const [freeDay, setFreeDay] = useState<DayCode>(() => dayCodeOf(new Date()));
+  const [freeDay, setFreeDay] = useState<DayCode>(() => weekdayOf(new Date()));
   const [freeMin, setFreeMin] = useState(() => clampToSlider(minutesNow(new Date())));
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -98,13 +151,8 @@ export default function MapPage({ onClose }: Props) {
   const hasSchedules = group.people.some((p) => p.enabled && p.schedule);
   const timeLabel = minutesToFullLabel(probeMin);
 
-  const status = !hasSchedules
-    ? 'no schedules on the calendar yet — add some from the main page'
-    : occ.busyCount === 0
-      ? mode === 'live'
-        ? "no one's in class right now"
-        : `no one's in class ${probeDay} at ${timeLabel}`
-      : null;
+  // when nobody is in class the "available" card already tells the story
+  const status = hasSchedules ? null : 'no schedules on the calendar yet — add some from the main page';
 
   return (
     <div className="mappage">
@@ -136,7 +184,7 @@ export default function MapPage({ onClose }: Props) {
             onClick={() => {
               // pick up from the live moment so switching feels continuous
               if (mode === 'live') {
-                setFreeDay(dayCodeOf(now));
+                setFreeDay(weekdayOf(now));
                 setFreeMin(clampToSlider(minutesNow(now)));
               }
               setMode('free');
@@ -165,17 +213,20 @@ export default function MapPage({ onClose }: Props) {
           </div>
         )}
 
-        {mode === 'free' && (
-          <div className="map-dayrail" aria-label="Day of week">
-            {DAY_ORDER.map((d) => (
-              <button
-                key={d}
-                type="button"
-                className={d === freeDay ? 'sel' : ''}
-                onClick={() => setFreeDay(d)}
-              >
-                {d}
-              </button>
+        {data && occ.free.length > 0 && (
+          <div className="map-avail">
+            <div className="map-avail__title">
+              <span className="map-avail__dot" />
+              available · {occ.free.length}
+            </div>
+            {occ.free.map(({ person, nextStartMin }) => (
+              <div key={person.id} className="map-avail__row">
+                <AvatarChip avatar={person.avatar} size={20} />
+                <span className="map-avail__name">{names.get(person.id) ?? person.handle}</span>
+                <span className="map-avail__til">
+                  {nextStartMin != null ? `til ${minutesToFullLabel(nextStartMin)}` : 'all day'}
+                </span>
+              </div>
             ))}
           </div>
         )}
@@ -202,11 +253,9 @@ export default function MapPage({ onClose }: Props) {
             {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
           </div>
         ) : (
-          <>
-            <div className="map-timerow">
-              <span className="map-timerow__label">
-                {freeDay} {timeLabel}
-              </span>
+          <div className="map-timerow">
+            <DayWheel day={freeDay} onChange={setFreeDay} />
+            <div className="map-timecol">
               <input
                 type="range"
                 className="map-slider"
@@ -217,13 +266,13 @@ export default function MapPage({ onClose }: Props) {
                 onChange={(e) => setFreeMin(Number(e.target.value))}
                 aria-label="Time of day"
               />
+              <div className="map-timemeta">
+                <span aria-hidden>{minutesToFullLabel(SLIDER_MIN)}</span>
+                <span className="map-timemeta__sel">{timeLabel}</span>
+                <span aria-hidden>{minutesToFullLabel(SLIDER_MAX)}</span>
+              </div>
             </div>
-            <div className="map-hours" aria-hidden>
-              {HOUR_MARKS.map((h, i) => (
-                <span key={i}>{h}</span>
-              ))}
-            </div>
-          </>
+          </div>
         )}
       </footer>
     </div>

@@ -9,6 +9,13 @@ export interface MapAttendee {
   pattern: MeetingPattern;
 }
 
+/** One person with no class at the probed moment. */
+export interface FreePerson {
+  person: Person;
+  /** start of their next class that day, or null = free the rest of the day */
+  nextStartMin: number | null;
+}
+
 export interface CampusOccupancy {
   /** buildingCode -> people in class there, sorted by handle */
   byBuilding: Map<string, MapAttendee[]>;
@@ -16,6 +23,8 @@ export interface CampusOccupancy {
   unlocated: MapAttendee[];
   /** people in class anywhere right now (deduped) */
   busyCount: number;
+  /** everyone else — not in any class at the probed moment, sorted by handle */
+  free: FreePerson[];
 }
 
 /**
@@ -33,9 +42,15 @@ export function occupancyAt(
   const byBuilding = new Map<string, MapAttendee[]>();
   const unlocated: MapAttendee[] = [];
   const busy = new Set<string>();
+  /** personId -> earliest class start later this day (for "free til X") */
+  const nextStart = new Map<string, number>();
 
   for (const block of expandBlocks(people, term)) {
     if (block.day !== day) continue;
+    if (block.startMin > minute) {
+      const prev = nextStart.get(block.person.id);
+      if (prev === undefined || block.startMin < prev) nextStart.set(block.person.id, block.startMin);
+    }
     if (minute < block.startMin || minute >= block.endMin) continue;
     const attendee: MapAttendee = { person: block.person, section: block.section, pattern: block.pattern };
     busy.add(block.person.id);
@@ -59,7 +74,12 @@ export function occupancyAt(
   }
   unlocated.sort((a, b) => a.person.handle.localeCompare(b.person.handle));
 
-  return { byBuilding, unlocated, busyCount: busy.size };
+  const free: FreePerson[] = people
+    .filter((p) => p.enabled && p.schedule && !busy.has(p.id))
+    .map((person) => ({ person, nextStartMin: nextStart.get(person.id) ?? null }))
+    .sort((a, b) => a.person.handle.localeCompare(b.person.handle));
+
+  return { byBuilding, unlocated, busyCount: busy.size, free };
 }
 
 /** 'CPSC_V 221' -> 'CPSC 221'; falls back to a clipped title */

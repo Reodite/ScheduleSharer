@@ -76,6 +76,23 @@ describe('occupancyAt', () => {
     expect(list[0].pattern.room).toBe('SHORT');
   });
 
+  it('lists people with no class as free, with their next start time', () => {
+    const busy = person('busy', [section([meeting({ buildingCode: 'BUCH' })])]);
+    const later = person('later', [section([meeting({ startMin: 780, endMin: 840, buildingCode: 'ESB' })])]);
+    const done = person('done', [section([meeting({ startMin: 480, endMin: 510, buildingCode: 'ESB' })])]);
+    const noSched = { ...person('none', []), schedule: null };
+
+    const occ = occupancyAt([busy, later, done, noSched], term, 'Mon', 570);
+    expect(occ.free.map((f) => f.person.handle)).toEqual(['done', 'later']);
+    expect(occ.free.find((f) => f.person.handle === 'later')!.nextStartMin).toBe(780);
+    expect(occ.free.find((f) => f.person.handle === 'done')!.nextStartMin).toBeNull();
+  });
+
+  it('free list respects the enabled filter', () => {
+    const off = person('off', [section([meeting({ startMin: 780, endMin: 840 })])], false);
+    expect(occupancyAt([off], term, 'Mon', 570).free).toEqual([]);
+  });
+
   it('collects located-nowhere classes as unlocated', () => {
     const alice = person('alice', [section([meeting({})])]);
     const occ = occupancyAt([alice], term, 'Mon', 570);
