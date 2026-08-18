@@ -174,7 +174,7 @@ export class ShareDecodeError extends Error {}
 export function decodeShareHash(hash: string): GroupState | null {
   if (hash.startsWith(LEGACY_HASH_KEY)) {
     throw new ShareDecodeError(
-      'This link is from an older version of ScheduleSharer — ask your friend to refresh the app and copy a fresh one.',
+      'This link is from an older version of Reodite Schedules — ask your friend to refresh the app and copy a fresh one.',
     );
   }
   if (!hash.startsWith(HASH_KEY)) return null;
@@ -189,7 +189,7 @@ export function decodeShareHash(hash: string): GroupState | null {
     throw new ShareDecodeError('This share link is damaged or truncated — ask for a fresh one.');
   }
   if (version > SCHEMA_VERSION) {
-    throw new ShareDecodeError('This link was made with a newer version of ScheduleSharer — refresh the app.');
+    throw new ShareDecodeError('This link was made with a newer version of Reodite Schedules — refresh the app.');
   }
   if (version < SCHEMA_VERSION) {
     throw new ShareDecodeError('This link is from an older version — ask your friend to copy a fresh one.');

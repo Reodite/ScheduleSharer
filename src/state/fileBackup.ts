@@ -16,7 +16,7 @@ export function exportBackup(state: GroupState): void {
     .replace(/^-+|-+$/g, '');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `schedulesharer-${slug || 'schedule'}-${stamp}.json`;
+  a.download = `reodite-schedules-${slug || 'schedule'}-${stamp}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
 }
@@ -32,10 +32,10 @@ export function parseBackup(text: string): GroupState {
   }
   const state = data as GroupState;
   if (typeof state?.schemaVersion !== 'number' || !Array.isArray(state?.people)) {
-    throw new BackupParseError('That file is not a ScheduleSharer export.');
+    throw new BackupParseError('That file is not a Reodite Schedules export.');
   }
   if (state.schemaVersion > SCHEMA_VERSION) {
-    throw new BackupParseError('That file was made with a newer version of ScheduleSharer — refresh the app.');
+    throw new BackupParseError('That file was made with a newer version of Reodite Schedules — refresh the app.');
   }
   for (const p of state.people) {
     if (typeof p?.id !== 'string' || typeof p?.handle !== 'string' || typeof p?.updatedAt !== 'string') {

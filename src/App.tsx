@@ -158,7 +158,7 @@ export default function App() {
       <header className="topbar">
         <div className="wordmark">
           <span className="wordmark__name">
-            Schedule<em>Sharer</em>
+            Reodite <em>Schedules</em>
           </span>
         </div>
         <button
