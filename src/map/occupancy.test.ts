@@ -80,12 +80,17 @@ describe('occupancyAt', () => {
     const busy = person('busy', [section([meeting({ buildingCode: 'BUCH' })])]);
     const later = person('later', [section([meeting({ startMin: 780, endMin: 840, buildingCode: 'ESB' })])]);
     const done = person('done', [section([meeting({ startMin: 480, endMin: 510, buildingCode: 'ESB' })])]);
+    const offDay = person('offday', [section([meeting({ days: ['Tue'], buildingCode: 'ESB' })])]);
     const noSched = { ...person('none', []), schedule: null };
 
-    const occ = occupancyAt([busy, later, done, noSched], term, 'Mon', 570);
-    expect(occ.free.map((f) => f.person.handle)).toEqual(['done', 'later']);
+    const occ = occupancyAt([busy, later, done, offDay, noSched], term, 'Mon', 570);
+    expect(occ.free.map((f) => f.person.handle)).toEqual(['done', 'later', 'offday']);
     expect(occ.free.find((f) => f.person.handle === 'later')!.nextStartMin).toBe(780);
     expect(occ.free.find((f) => f.person.handle === 'done')!.nextStartMin).toBeNull();
+    // classes over for the day is NOT the same as free all day
+    expect(occ.free.find((f) => f.person.handle === 'done')!.hasClassesToday).toBe(true);
+    expect(occ.free.find((f) => f.person.handle === 'offday')!.hasClassesToday).toBe(false);
+    expect(occ.free.find((f) => f.person.handle === 'offday')!.nextStartMin).toBeNull();
   });
 
   it('free list respects the enabled filter', () => {

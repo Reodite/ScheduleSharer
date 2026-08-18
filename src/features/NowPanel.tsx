@@ -30,7 +30,7 @@ export function NowPanel({ people, now }: Props) {
           {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
         </span>
       </h3>
-      {statuses.map(({ person, current, next }) => (
+      {statuses.map(({ person, current, next, hasClassesToday }) => (
         <div key={person.id} className="now-row">
           <AvatarChip avatar={person.avatar} size={24} title={names.get(person.id)} />
           <div className="now-row__body">
@@ -44,7 +44,11 @@ export function NowPanel({ people, now }: Props) {
             ) : (
               <span className="now-row__status now-row__status--free">
                 free
-                {next ? ` · ${shortLabel(next.section)} at ${minutesToFullLabel(next.pattern.startMin)}` : ' all day'}
+                {next
+                  ? ` · ${shortLabel(next.section)} at ${minutesToFullLabel(next.pattern.startMin)}`
+                  : hasClassesToday
+                    ? ' · rest of day' // done for today ≠ free all day
+                    : ' all day'}
               </span>
             )}
           </div>
