@@ -16,6 +16,18 @@ type Mode = 'live' | 'free';
 
 const SLIDER_MIN = 7 * 60;
 const SLIDER_MAX = 22 * 60;
+
+/** 780 -> '1 PM' — compact hour label for the slider tick rail */
+function hourLabel(min: number): string {
+  const h = min / 60;
+  return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
+// hourly ticks under the slider, a reference time every 3 hours
+const SLIDER_TICKS: { min: number; label?: string }[] = [];
+for (let m = SLIDER_MIN; m <= SLIDER_MAX; m += 60) {
+  SLIDER_TICKS.push({ min: m, label: (m / 60 - 7) % 3 === 0 ? hourLabel(m) : undefined });
+}
 const WHEEL_DAYS = DAY_ORDER.slice(0, 5); // the free-mode wheel is weekdays only
 const WHEEL_ITEM_PX = 24;
 
@@ -287,7 +299,8 @@ export default function MapPage({ onClose }: Props) {
         ) : (
           <div className="map-timerow">
             <DayWheel day={freeDay} onChange={setFreeDay} />
-            <div className="map-timecol">
+            <div className="map-timecard">
+              <div className="map-timecard__time">{timeLabel}</div>
               <input
                 type="range"
                 className="map-slider"
@@ -298,10 +311,16 @@ export default function MapPage({ onClose }: Props) {
                 onChange={(e) => setFreeMin(Number(e.target.value))}
                 aria-label="Time of day"
               />
-              <div className="map-timemeta">
-                <span aria-hidden>{minutesToFullLabel(SLIDER_MIN)}</span>
-                <span className="map-timemeta__sel">{timeLabel}</span>
-                <span aria-hidden>{minutesToFullLabel(SLIDER_MAX)}</span>
+              <div className="map-ticks" aria-hidden>
+                {SLIDER_TICKS.map((t) => (
+                  <span
+                    key={t.min}
+                    className={`map-tick${t.label ? ' map-tick--major' : ''}`}
+                    style={{ left: `${((t.min - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100}%` }}
+                  >
+                    {t.label && <span className="map-tick__label">{t.label}</span>}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
