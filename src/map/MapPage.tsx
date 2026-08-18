@@ -336,12 +336,16 @@ export default function MapPage({ onClose }: Props) {
               <span className="map-avail__dot" />
               available · {occ.free.length}
             </div>
-            {occ.free.map(({ person, nextStartMin }) => (
+            {occ.free.map(({ person, nextStartMin, hasClassesToday }) => (
               <div key={person.id} className="map-avail__row">
                 <AvatarChip avatar={person.avatar} size={20} />
                 <span className="map-avail__name">{names.get(person.id) ?? person.handle}</span>
                 <span className="map-avail__til">
-                  {nextStartMin != null ? `til ${minutesToFullLabel(nextStartMin)}` : 'all day'}
+                  {nextStartMin != null
+                    ? `til ${minutesToFullLabel(nextStartMin)}`
+                    : hasClassesToday
+                      ? 'rest of day' // classes are done — not the same as no classes at all
+                      : 'all day'}
                 </span>
               </div>
             ))}

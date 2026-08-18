@@ -14,6 +14,8 @@ export interface FreePerson {
   person: Person;
   /** start of their next class that day, or null = free the rest of the day */
   nextStartMin: number | null;
+  /** any class at all on the probed day — false means genuinely free ALL day */
+  hasClassesToday: boolean;
 }
 
 export interface CampusOccupancy {
@@ -44,9 +46,12 @@ export function occupancyAt(
   const busy = new Set<string>();
   /** personId -> earliest class start later this day (for "free til X") */
   const nextStart = new Map<string, number>();
+  /** everyone with any class on this day, whenever it is/was */
+  const hasToday = new Set<string>();
 
   for (const block of expandBlocks(people, term)) {
     if (block.day !== day) continue;
+    hasToday.add(block.person.id);
     if (block.startMin > minute) {
       const prev = nextStart.get(block.person.id);
       if (prev === undefined || block.startMin < prev) nextStart.set(block.person.id, block.startMin);
@@ -76,7 +81,11 @@ export function occupancyAt(
 
   const free: FreePerson[] = people
     .filter((p) => p.enabled && p.schedule && !busy.has(p.id))
-    .map((person) => ({ person, nextStartMin: nextStart.get(person.id) ?? null }))
+    .map((person) => ({
+      person,
+      nextStartMin: nextStart.get(person.id) ?? null,
+      hasClassesToday: hasToday.has(person.id),
+    }))
     .sort((a, b) => a.person.handle.localeCompare(b.person.handle));
 
   return { byBuilding, unlocated, busyCount: busy.size, free };
