@@ -49,8 +49,14 @@ function DayWheel({ day, onChange }: { day: DayCode; onChange: (d: DayCode) => v
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  // keep the wheel centered on the selected day (mode switches, external sets)
+  // mouse drag-to-scroll state; null when idle (touch drags scroll natively)
+  const drag = useRef<{ pointerId: number; startY: number; startTop: number; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
+
+  // keep the wheel centered on the selected day (mode switches, external sets);
+  // skipped mid-drag so it doesn't yank the wheel out from under the pointer
   useEffect(() => {
+    if (drag.current?.moved) return;
     const el = ref.current!;
     const idx = Math.max(0, WHEEL_DAYS.indexOf(day));
     const top = idx * WHEEL_ITEM_PX;
@@ -95,9 +101,65 @@ function DayWheel({ day, onChange }: { day: DayCode; onChange: (d: DayCode) => v
     });
   }
 
+  // Browsers only drag-scroll with touch, so click-and-drag on a mouse did
+  // nothing. Drive scrollTop from pointer events for mouse input, with snap
+  // disabled during the drag (see --dragging in map.css) and the trailing
+  // click swallowed so releasing over a day doesn't also select it.
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    const el = ref.current!;
+    drag.current = { pointerId: e.pointerId, startY: e.clientY, startTop: el.scrollTop, moved: false };
+    suppressClick.current = false;
+  }
+
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const d = drag.current;
+    if (!d) return;
+    const dy = e.clientY - d.startY;
+    if (!d.moved && Math.abs(dy) < 4) return; // below threshold: still a click
+    const el = ref.current!;
+    if (!d.moved) {
+      d.moved = true;
+      el.classList.add('map-daywheel__scroll--dragging');
+      // capture only once it's a real drag — capturing on pointerdown would
+      // redirect the trailing click away from the day buttons
+      el.setPointerCapture(d.pointerId);
+    }
+    el.scrollTop = d.startTop - dy; // onScroll keeps the selected day in sync
+  }
+
+  function onPointerEnd() {
+    const d = drag.current;
+    if (!d) return;
+    drag.current = null;
+    if (!d.moved) return; // plain click: the button's onClick handles it
+    suppressClick.current = true;
+    const el = ref.current!;
+    el.classList.remove('map-daywheel__scroll--dragging');
+    const idx = Math.min(WHEEL_DAYS.length - 1, Math.max(0, Math.round(el.scrollTop / WHEEL_ITEM_PX)));
+    if (WHEEL_DAYS[idx] !== dayRef.current) onChangeRef.current(WHEEL_DAYS[idx]); // recenter effect snaps
+    else el.scrollTo({ top: idx * WHEEL_ITEM_PX, behavior: 'smooth' });
+  }
+
+  function onClickCapture(e: React.MouseEvent<HTMLDivElement>) {
+    if (!suppressClick.current) return;
+    suppressClick.current = false;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
   return (
     <div className="map-daywheel" aria-label="Day of week">
-      <div ref={ref} className="map-daywheel__scroll" onScroll={onScroll}>
+      <div
+        ref={ref}
+        className="map-daywheel__scroll"
+        onScroll={onScroll}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerEnd}
+        onPointerCancel={onPointerEnd}
+        onClickCapture={onClickCapture}
+      >
         <div className="map-daywheel__pad" />
         {WHEEL_DAYS.map((d) => (
           <button

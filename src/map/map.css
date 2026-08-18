@@ -464,6 +464,16 @@
   mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent);
 }
 
+/* mouse drag in progress: snap off so the drag isn't fought, grab cursor */
+.map-daywheel__scroll--dragging {
+  scroll-snap-type: none;
+}
+
+.map-daywheel__scroll--dragging,
+.map-daywheel__scroll--dragging .map-daywheel__item {
+  cursor: grabbing;
+}
+
 .map-daywheel__scroll::-webkit-scrollbar {
   display: none;
 }
