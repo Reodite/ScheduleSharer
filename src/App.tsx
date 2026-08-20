@@ -17,7 +17,7 @@ import { ShareBar } from './ui/ShareBar';
 import { ProfileModal } from './ui/ProfileModal';
 import type { ProfileDraft } from './ui/ProfileModal';
 import { ScheduleManager } from './ui/ScheduleManager';
-import { PeopleManager } from './ui/PeopleManager';
+import { PeoplePage } from './ui/PeoplePage';
 import { useToast } from './ui/Toast';
 import { dayCodeOf, minutesToFullLabel, toISODate } from './util/time';
 
@@ -26,6 +26,7 @@ import { dayCodeOf, minutesToFullLabel, toISODate } from './util/time';
 const MapPage = lazy(() => import('./map/MapPage'));
 
 const MAP_HASH = '#map';
+const PEOPLE_HASH = '#people';
 
 function useNow(): Date {
   const [now, setNow] = useState(() => new Date());
@@ -44,7 +45,6 @@ export default function App() {
   const [termKey, setTermKey] = useState<string | null>(null);
   const [showFree, setShowFree] = useState(true);
   const [showManager, setShowManager] = useState(false);
-  const [showPeople, setShowPeople] = useState(false);
   const [draft, setDraft] = useState<ProfileDraft | null>(null);
   const [detail, setDetail] = useState<MergedBlock | null>(null);
   const [mobileDay, setMobileDay] = useState<DayCode>(() => {
@@ -67,6 +67,23 @@ export default function App() {
   function closeMap() {
     // opened via the button: back restores the previous URL (share hash incl.)
     if (mapOpenedHere.current) window.history.back();
+    else window.location.hash = '';
+  }
+
+  // The people page works the same way: its own hash route.
+  const [showPeople, setShowPeople] = useState(() => window.location.hash === PEOPLE_HASH);
+  const peopleOpenedHere = useRef(false);
+  useEffect(() => {
+    const sync = () => setShowPeople(window.location.hash === PEOPLE_HASH);
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
+  function openPeople() {
+    peopleOpenedHere.current = true;
+    window.location.hash = PEOPLE_HASH;
+  }
+  function closePeople() {
+    if (peopleOpenedHere.current) window.history.back();
     else window.location.hash = '';
   }
 
@@ -184,7 +201,7 @@ export default function App() {
           className="btn btn--icon people-btn"
           title="Your people — everyone you've imported, across all schedules"
           aria-label="Your people"
-          onClick={() => setShowPeople(true)}
+          onClick={openPeople}
         >
           <svg
             width="15"
@@ -310,7 +327,7 @@ export default function App() {
         </Suspense>
       )}
       {showManager && <ScheduleManager onClose={() => setShowManager(false)} />}
-      {showPeople && <PeopleManager onClose={() => setShowPeople(false)} />}
+      {showPeople && <PeoplePage onClose={closePeople} />}
       {draft && (
         <ProfileModal
           draft={draft}
