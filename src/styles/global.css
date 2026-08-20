@@ -610,6 +610,25 @@ input[type='text'] {
   margin: 0 auto;
 }
 
+.peoplepage__section + .peoplepage__section {
+  margin-top: 18px;
+}
+
+.peoplepage__sectiontitle {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 8px;
+}
+
+.person__ingroup--me {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .peoplepage__list .person {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);

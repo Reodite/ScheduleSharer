@@ -322,7 +322,7 @@ export default function App() {
         <div className="layout">
           <aside className="sidebar">
             <DropZone onParsed={onParsed} />
-            <PeoplePanel onEdit={(person) => setDraft({ person })} />
+            <PeoplePanel />
             <div className="panel">
               <label className={`toggle-row${showFree ? ' toggle-row--on' : ''}`}>
                 <input type="checkbox" checked={showFree} onChange={(e) => setShowFree(e.target.checked)} />
@@ -368,11 +368,11 @@ export default function App() {
         </Suspense>
       )}
       {showManager && <ScheduleManager onClose={() => setShowManager(false)} />}
-      {showPeople && <PeoplePage onClose={closePeople} />}
+      {showPeople && <PeoplePage onClose={closePeople} onEdit={(person) => setDraft({ person })} />}
       {draft && (
         <ProfileModal
           draft={draft}
-          takenHandles={group.people.filter((p) => p.id !== draft.person?.id).map((p) => p.handle)}
+          takenHandles={library.people.filter((p) => p.id !== draft.person?.id).map((p) => p.handle)}
           onSave={savePerson}
           onCancel={() => setDraft(null)}
         />

@@ -36,7 +36,7 @@ function group(groupId: string, name: string, memberIds: string[] = []): Group {
 }
 
 function lib(groups: Group[], people: Person[] = [], activeId = groups[0].groupId): Library {
-  return { activeId, people, groups, pinnedIds: [] };
+  return { activeId, people, groups, pinnedIds: [], meId: null };
 }
 
 const OLD = '2026-06-01T00:00:00.000Z';
@@ -87,6 +87,7 @@ describe('importIntoLibrary', () => {
     const start: Library = {
       activeId: 'g1',
       pinnedIds: [],
+      meId: null,
       people: [person('a', 'alice', OLD)],
       groups: [{ groupId: 'g1', name: 'Crew', members: [{ personId: 'a', enabled: false }] }],
     };
@@ -187,16 +188,21 @@ describe('duplicateInLibrary', () => {
 });
 
 describe('removeFromRoster', () => {
-  it('removes the person and strips them from every group and the pin list', () => {
+  it('removes the person and strips them from every group, the pin list, and meId', () => {
     const start = {
       ...lib([group('g1', 'A', ['a', 'b']), group('g2', 'B', ['a'])], [person('a', 'alice'), person('b', 'bob')]),
       pinnedIds: ['a'],
+      meId: 'a',
     };
     const next = removeFromRoster(start, 'a');
     expect(next.people.map((p) => p.handle)).toEqual(['bob']);
     expect(next.groups[0].members.map((m) => m.personId)).toEqual(['b']);
     expect(next.groups[1].members).toEqual([]);
     expect(next.pinnedIds).toEqual([]);
+    expect(next.meId).toBeNull();
+    // removing someone else leaves me intact
+    const other = removeFromRoster({ ...start }, 'b');
+    expect(other.meId).toBe('a');
   });
 });
 
@@ -274,6 +280,7 @@ describe('resolveGroup', () => {
     const l: Library = {
       activeId: 'g1',
       pinnedIds: [],
+      meId: null,
       people: [person('a', 'alice'), person('b', 'bob')],
       groups: [
         {

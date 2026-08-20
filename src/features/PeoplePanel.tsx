@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import type { Person } from '../types';
 import { useStore } from '../state/store';
 import { displayHandles } from '../state/merge';
 import { buildProfileUrl } from '../state/shareLink';
@@ -7,11 +6,7 @@ import { AvatarChip } from '../avatar/AvatarChip';
 import { parseScheduleXlsx } from '../parse/scheduleParser';
 import { useToast } from '../ui/Toast';
 
-interface Props {
-  onEdit: (person: Person) => void;
-}
-
-export function PeoplePanel({ onEdit }: Props) {
+export function PeoplePanel() {
   const { group, dispatch } = useStore();
   const toast = useToast();
   const reuploadRef = useRef<HTMLInputElement>(null);
@@ -83,9 +78,6 @@ export function PeoplePanel({ onEdit }: Props) {
               <span className="person__focus-mark" aria-hidden="true" />
             </button>
             <div className="person__actions">
-              <button type="button" className="btn btn--ghost btn--icon" title="Edit handle / avatar" onClick={() => onEdit(p)}>
-                ✎
-              </button>
               <button
                 type="button"
                 className="btn btn--ghost btn--icon"
