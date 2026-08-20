@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { DayCode, Person, Schedule } from '../src/types';
 import { useStore } from './state/store';
 import { importIntoLibrary } from './state/library';
-import { decodeShareHash, ShareDecodeError } from './state/shareLink';
+import { decodeProfileHash, decodeShareHash, ShareDecodeError } from './state/shareLink';
 import { deriveTerms, defaultTermKey } from './features/terms';
 import { buildCalendar, expandBlocks } from './calendar/buildCalendar';
 import type { MergedBlock } from './calendar/buildCalendar';
@@ -17,6 +17,7 @@ import { ShareBar } from './ui/ShareBar';
 import { ProfileModal } from './ui/ProfileModal';
 import type { ProfileDraft } from './ui/ProfileModal';
 import { ScheduleManager } from './ui/ScheduleManager';
+import { PeopleManager } from './ui/PeopleManager';
 import { useToast } from './ui/Toast';
 import { dayCodeOf, minutesToFullLabel, toISODate } from './util/time';
 
@@ -43,6 +44,7 @@ export default function App() {
   const [termKey, setTermKey] = useState<string | null>(null);
   const [showFree, setShowFree] = useState(true);
   const [showManager, setShowManager] = useState(false);
+  const [showPeople, setShowPeople] = useState(false);
   const [draft, setDraft] = useState<ProfileDraft | null>(null);
   const [detail, setDetail] = useState<MergedBlock | null>(null);
   const [mobileDay, setMobileDay] = useState<DayCode>(() => {
@@ -74,8 +76,9 @@ export default function App() {
     if (!bootImport || bootToastShown.current) return;
     bootToastShown.current = true;
     if (bootImport.error) toast(bootImport.error, 'error');
+    else if (bootImport.profileHandle) toast(`Saved ${bootImport.profileHandle}'s schedule to your people 🎉`);
     else if (bootImport.outcome === 'full')
-      toast('Schedule cache is full (5/5) — delete one from the schedule menu, then reopen the link.', 'error');
+      toast('Saved the people to your list, but the schedule cache is full (5/5) — delete one to cache this schedule.', 'error');
     else if (bootImport.outcome === 'added')
       toast(`Saved new schedule "${bootImport.groupName || 'Untitled'}" from the link 🎉`);
     else if (bootImport.importedPeople.length > 0)
@@ -89,14 +92,20 @@ export default function App() {
   useEffect(() => {
     function onHashChange() {
       try {
+        const person = decodeProfileHash(window.location.hash);
+        if (person) {
+          dispatch({ type: 'importProfile', person });
+          toast(`Saved ${person.handle}'s schedule to your people 🎉`);
+          return;
+        }
         const incoming = decodeShareHash(window.location.hash);
         if (!incoming) return;
         const { outcome } = importIntoLibrary(library, incoming);
+        dispatch({ type: 'importIncoming', incoming });
         if (outcome === 'full') {
-          toast('Schedule cache is full (5/5) — delete one from the schedule menu, then reopen the link.', 'error');
+          toast('Saved the people to your list, but the schedule cache is full (5/5) — delete one to cache this schedule.', 'error');
           return;
         }
-        dispatch({ type: 'importIncoming', incoming });
         toast(
           outcome === 'added'
             ? `Saved new schedule "${incoming.name || 'Untitled'}" from the link 🎉`
@@ -169,6 +178,31 @@ export default function App() {
         >
           {group.name || 'Untitled schedule'}
           <span className="sched-btn__caret">▾</span>
+        </button>
+        <button
+          type="button"
+          className="btn btn--icon people-btn"
+          title="Your people — everyone you've imported, across all schedules"
+          aria-label="Your people"
+          onClick={() => setShowPeople(true)}
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          <span className="people-btn__label">People</span>
         </button>
         <div className="topbar__spacer" />
         <TermSwitcher terms={terms} selected={selectedTermKey} onSelect={setTermKey} />
@@ -276,6 +310,7 @@ export default function App() {
         </Suspense>
       )}
       {showManager && <ScheduleManager onClose={() => setShowManager(false)} />}
+      {showPeople && <PeopleManager onClose={() => setShowPeople(false)} />}
       {draft && (
         <ProfileModal
           draft={draft}

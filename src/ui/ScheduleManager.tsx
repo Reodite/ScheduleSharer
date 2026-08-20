@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MAX_GROUPS } from '../types';
 import { useStore } from '../state/store';
+import { resolveGroup } from '../state/library';
 import { AvatarChip } from '../avatar/AvatarChip';
 
 interface Props {
@@ -28,7 +29,8 @@ export function ScheduleManager({ onClose }: Props) {
           </span>
         </h2>
 
-        {library.groups.map((g) => {
+        {library.groups.map((ref) => {
+          const g = resolveGroup(library, ref);
           const active = g.groupId === library.activeId;
           const onlySchedule = library.groups.length === 1;
           const full = library.groups.length >= MAX_GROUPS;
@@ -111,7 +113,7 @@ export function ScheduleManager({ onClose }: Props) {
                     if (
                       window.confirm(
                         `Delete "${g.name || 'Untitled schedule'}" from this device? ` +
-                          'Anyone with a share link still has their copy.',
+                          'Its people stay in your people list, and anyone with a share link still has their copy.',
                       )
                     ) {
                       dispatch({ type: 'deleteGroup', groupId: g.groupId });

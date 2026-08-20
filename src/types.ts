@@ -64,16 +64,24 @@ export interface Person {
   schedule: Schedule | null;
   /** ISO timestamp; newest-wins on merge */
   updatedAt: string;
-  /** local-only UI filter; persisted to localStorage, stripped from links */
+  /**
+   * show/hide flag. On roster records this is always true — the real
+   * per-schedule preference lives on GroupMember and is applied when a
+   * group is resolved for display.
+   */
   enabled: boolean;
 }
 
+/**
+ * The WIRE shape: share links, profile links, and JSON backups all carry a
+ * GroupState with people embedded. Local storage does not — see Library.
+ */
 export interface GroupState {
   schemaVersion: number;
   /**
    * Stable identity of this shared calendar — travels in share links.
    * A link with a known groupId updates that cached schedule; an unknown
-   * groupId caches a new one.
+   * groupId caches a new one. Empty on legacy payloads and profile links.
    */
   groupId: string;
   /** user-editable display name; travels in links (newest wins on update) */
@@ -81,12 +89,31 @@ export interface GroupState {
   people: Person[];
 }
 
-/** All locally cached schedules plus which one is on screen. */
-export interface Library {
-  activeId: string;
-  groups: GroupState[];
+/** One person's slot in a group: a roster reference + the local show/hide flag. */
+export interface GroupMember {
+  personId: string;
+  enabled: boolean;
 }
 
-export function emptyGroup(name = ''): GroupState {
-  return { schemaVersion: SCHEMA_VERSION, groupId: crypto.randomUUID(), name, people: [] };
+/** A schedule (shared calendar): a named composition of roster people. */
+export interface Group {
+  groupId: string;
+  name: string;
+  members: GroupMember[];
+}
+
+/**
+ * All local state. People live ONCE in the roster — every import path
+ * (share link, profile link, JSON file, xlsx drop) writes here — and groups
+ * only reference them, so an updated person is current in every schedule
+ * that includes them.
+ */
+export interface Library {
+  activeId: string;
+  people: Person[];
+  groups: Group[];
+}
+
+export function freshGroup(name = ''): Group {
+  return { groupId: crypto.randomUUID(), name, members: [] };
 }

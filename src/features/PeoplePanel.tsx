@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import type { Person } from '../types';
 import { useStore } from '../state/store';
 import { displayHandles } from '../state/merge';
+import { buildProfileUrl } from '../state/shareLink';
 import { AvatarChip } from '../avatar/AvatarChip';
 import { parseScheduleXlsx } from '../parse/scheduleParser';
 import { useToast } from '../ui/Toast';
@@ -61,7 +62,10 @@ export function PeoplePanel({ onEdit }: Props) {
               <span className="person__handle">{displayName}</span>
               <span className="person__meta">
                 {p.schedule
-                  ? `${new Set(p.schedule.sections.map((s) => s.courseCode || s.title)).size} courses`
+                  ? (() => {
+                      const n = new Set(p.schedule.sections.map((s) => s.courseCode || s.title)).size;
+                      return `${n} ${n === 1 ? 'course' : 'courses'}`;
+                    })()
                   : 'no schedule yet'}
               </span>
             </div>
@@ -85,6 +89,19 @@ export function PeoplePanel({ onEdit }: Props) {
               <button
                 type="button"
                 className="btn btn--ghost btn--icon"
+                title="Copy profile link — shares just this person's schedule"
+                onClick={() =>
+                  void navigator.clipboard.writeText(buildProfileUrl(p)).then(
+                    () => toast(`${p.handle}'s profile link copied — it shares just their schedule 📋`),
+                    () => toast('Could not access the clipboard.', 'error'),
+                  )
+                }
+              >
+                🔗
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost btn--icon"
                 title="Replace schedule (new .xlsx)"
                 onClick={() => {
                   setReuploadFor(p.id);
@@ -96,10 +113,10 @@ export function PeoplePanel({ onEdit }: Props) {
               <button
                 type="button"
                 className="btn btn--ghost btn--icon btn--danger"
-                title="Remove from group"
+                title="Remove from this schedule (stays in your people)"
                 onClick={() => {
-                  if (window.confirm(`Remove ${p.handle} and their schedule from this calendar?`)) {
-                    dispatch({ type: 'removePerson', id: p.id });
+                  if (window.confirm(`Remove ${p.handle} from this schedule? They'll stay in your people list.`)) {
+                    dispatch({ type: 'removeFromGroup', id: p.id });
                   }
                 }}
               >

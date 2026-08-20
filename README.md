@@ -15,6 +15,11 @@ share link's URL hash, and persists locally in your browser.
 - **Merged blocks** — friends in the same section share ONE block (their avatars stack on it).
 - **Share links** — the whole group's schedules compress into a URL. Open a friend's link, add
   your schedule, copy the new link back to the chat. Newest data wins on merge; nothing is dropped.
+- **People list** — everyone you import (from any link, file, or upload) is saved ONCE on your
+  device. Schedules just reference them, so an updated person is current in every schedule that
+  includes them, and you can assemble new schedules from people you already have.
+- **Profile links** — every person also has their own compact link (`#p=…`) that shares just
+  their schedule. Opening one saves/updates that person in your people list — no group involved.
 - **Person filter** — click anyone in the crew panel to hide/show them on the grid.
 - **Common free time** — green hatched bands where *everyone visible* is free (8 AM–8 PM, gaps ≥30 min).
 - **Right now** — live panel of who's currently in class (and where) vs. free, reading-break aware.
@@ -70,8 +75,10 @@ to `main`. One-time setup:
 - `src/parse/` — hand-rolled `.xlsx` reader (fflate unzip + fast-xml-parser) tuned to Workday's
   export quirks: bogus `<dimension>`, omitted empty cells, Excel serial dates, multi-pattern
   meeting cells split around reading break.
-- `src/state/` — React reducer store, localStorage persistence, lz-string share-link codec
-  (tuple-packed), newest-wins merge keyed by person id → handle.
+- `src/state/` — React reducer store, localStorage persistence, deflate share-link codec
+  (tuple-packed). People live once in a roster (newest-wins upsert keyed by person id → handle);
+  schedules are member references resolved on read. Share links (`#e=`) and profile links (`#p=`)
+  share one payload format; both feed the roster on import.
 - `src/calendar/` — pure layout pipeline: expand → merge identical sections across people →
   greedy column assignment for overlaps; pixel-positioned blocks on a CSS grid week view.
 - `src/features/` — term derivation, common-free-time intervals, who's-free-now.

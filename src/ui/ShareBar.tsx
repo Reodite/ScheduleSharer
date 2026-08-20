@@ -31,11 +31,11 @@ export function ShareBar() {
     try {
       const incoming = parseBackup(await file.text());
       const { outcome } = importIntoLibrary(library, incoming);
+      dispatch({ type: 'importIncoming', incoming });
       if (outcome === 'full') {
-        toast('Schedule cache is full (5/5) — delete one from the schedule menu first.', 'error');
+        toast('Saved the people to your list, but the schedule cache is full (5/5) — delete one to cache this schedule.', 'error');
         return;
       }
-      dispatch({ type: 'importIncoming', incoming });
       toast(
         outcome === 'added'
           ? `Saved new schedule "${incoming.name || 'Untitled'}" from file`

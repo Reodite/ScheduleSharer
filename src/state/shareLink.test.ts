@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseScheduleXlsx } from '../parse/scheduleParser';
-import { decodeShareHash, encodeShareHash } from './shareLink';
-import { mergeGroups } from './merge';
+import { decodeProfileHash, decodeShareHash, encodeProfileHash, encodeShareHash } from './shareLink';
 import { normalizeGroup } from './normalize';
 import type { GroupState, Person } from '../types';
 import { SCHEMA_VERSION } from '../types';
@@ -162,65 +161,32 @@ describe('normalizeGroup (v1 data migration)', () => {
   });
 });
 
-describe('mergeGroups', () => {
-  const old = '2026-06-01T00:00:00.000Z';
-  const newer = '2026-06-02T00:00:00.000Z';
-
-  it('adds unknown people and keeps the local groupId', () => {
-    const merged = mergeGroups(
-      makeGroup([makePerson('a1', 'alice', SPRING)], 'g-local'),
-      makeGroup([makePerson('b2', 'bob', FALL)], 'g-local'),
-    );
-    expect(merged.people.map((p) => p.handle)).toEqual(['alice', 'bob']);
-    expect(merged.groupId).toBe('g-local');
+describe('profile links (#p=)', () => {
+  it('round-trips one person, schedule and section ids intact', () => {
+    const p = makePerson('a1', 'alice', SPRING);
+    const hash = encodeProfileHash(p);
+    expect(hash.startsWith('#p=')).toBe(true);
+    const decoded = decodeProfileHash(hash)!;
+    expect(decoded.id).toBe('a1');
+    expect(decoded.handle).toBe('alice');
+    expect(decoded.schedule!.sections.map((s) => s.id)).toEqual(p.schedule!.sections.map((s) => s.id));
   });
 
-  it('adopts the incoming name, but keeps local name for nameless legacy payloads', () => {
-    const local = makeGroup([], 'g-local', 'My crew');
-    expect(mergeGroups(local, makeGroup([], 'g-local', 'Renamed crew')).name).toBe('Renamed crew');
-    expect(mergeGroups(local, makeGroup([], '', '')).name).toBe('My crew');
+  it('is far smaller than a group link and strips photos like group links do', () => {
+    const p = makePerson('a1', 'alice', SPRING);
+    p.avatar = { kind: 'image', color: '#3a86ff', imageDataUrl: 'data:image/jpeg;base64,xxxx' };
+    const hash = encodeProfileHash(p);
+    expect(hash.length).toBeLessThan(1200);
+    const decoded = decodeProfileHash(hash)!;
+    expect(decoded.avatar.kind).toBe('initials');
+    expect(decoded.avatar.imageDataUrl).toBeUndefined();
   });
 
-  it('newest wins for the same id', () => {
-    const merged = mergeGroups(
-      makeGroup([makePerson('a1', 'alice', SPRING, old)]),
-      makeGroup([makePerson('a1', 'alice-renamed', FALL, newer)]),
-    );
-    expect(merged.people).toHaveLength(1);
-    expect(merged.people[0].handle).toBe('alice-renamed');
-  });
-
-  it('stale incoming does not clobber newer local', () => {
-    const merged = mergeGroups(
-      makeGroup([makePerson('a1', 'alice', SPRING, newer)]),
-      makeGroup([makePerson('a1', 'alice-old', FALL, old)]),
-    );
-    expect(merged.people[0].handle).toBe('alice');
-    expect(merged.people[0].schedule!.sourceFileName).toBe(SPRING);
-  });
-
-  it('matches by handle when ids differ (same friend from two devices)', () => {
-    const merged = mergeGroups(
-      makeGroup([makePerson('a1', 'Alice', SPRING, old)]),
-      makeGroup([makePerson('zz9', 'alice', FALL, newer)]),
-    );
-    expect(merged.people).toHaveLength(1);
-    expect(merged.people[0].schedule!.sourceFileName).toBe(FALL);
-  });
-
-  it('preserves local photo when newest-wins picks an image-less link record', () => {
-    const localP = makePerson('a1', 'alice', SPRING, old);
-    localP.avatar = { kind: 'image', color: '#ff0', imageDataUrl: 'data:image/jpeg;base64,PHOTO' };
-    const incomingP = makePerson('a1', 'alice', FALL, newer); // emoji avatar, no image
-    const merged = mergeGroups(makeGroup([localP]), makeGroup([incomingP]));
-    expect(merged.people[0].schedule!.sourceFileName).toBe(FALL); // newest schedule won
-    expect(merged.people[0].avatar.imageDataUrl).toBe('data:image/jpeg;base64,PHOTO'); // photo kept
-  });
-
-  it('keeps local enabled preference across imports', () => {
-    const localP = { ...makePerson('a1', 'alice', SPRING, old), enabled: false };
-    const incomingP = makePerson('a1', 'alice', FALL, newer);
-    const merged = mergeGroups(makeGroup([localP]), makeGroup([incomingP]));
-    expect(merged.people[0].enabled).toBe(false);
+  it('each decoder ignores the other prefix', () => {
+    const p = makePerson('a1', 'alice', SPRING);
+    expect(decodeShareHash(encodeProfileHash(p))).toBeNull();
+    expect(decodeProfileHash(encodeShareHash(makeGroup([p])))).toBeNull();
+    expect(decodeProfileHash('')).toBeNull();
+    expect(() => decodeProfileHash('#p=!!!garbage!!!')).toThrow();
   });
 });
