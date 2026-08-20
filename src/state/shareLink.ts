@@ -1,5 +1,5 @@
 import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate';
-import type { Avatar, GroupState, MeetingPattern, Schedule, Section } from '../types';
+import type { Avatar, GroupState, MeetingPattern, Person, Schedule, Section } from '../types';
 import { SCHEMA_VERSION } from '../types';
 import { computeSectionId } from '../parse/sectionId';
 
@@ -13,9 +13,14 @@ import { computeSectionId } from '../parse/sectionId';
  *  - no per-meeting date ranges (one termStart/termEnd pair per section)
  *  - avatar images downgraded to initials; `enabled` and `raw` stripped;
  *    section ids regenerated on unpack
+ *
+ * Profile links (#p=...) reuse the exact same payload, scoped to one person
+ * with no group identity — they import that person into the roster and
+ * nothing else.
  */
 
 const HASH_KEY = '#e=';
+const PROFILE_HASH_KEY = '#p=';
 /** pre-deflate lz-string links — rejected with a refresh hint, not silence */
 const LEGACY_HASH_KEY = '#d=';
 /** Discord hard-caps messages at 2000 chars — the binding limit in practice */
@@ -138,7 +143,7 @@ function unpackAvatar(p: PackedAvatar): Avatar {
     : { kind: 'initials', initials: symbol, color };
 }
 
-export function encodeShareHash(state: GroupState): string {
+function packPayload(state: GroupState): string {
   // Group-wide section table: identical sections (same id) stored once.
   const table: PackedSection[] = [];
   const indexById = new Map<string, number>();
@@ -160,7 +165,11 @@ export function encodeShareHash(state: GroupState): string {
   });
 
   const packed: PackedGroup = [SCHEMA_VERSION, state.groupId, state.name, table, people];
-  return HASH_KEY + toBase64Url(deflateSync(strToU8(JSON.stringify(packed)), { level: 9 }));
+  return toBase64Url(deflateSync(strToU8(JSON.stringify(packed)), { level: 9 }));
+}
+
+export function encodeShareHash(state: GroupState): string {
+  return HASH_KEY + packPayload(state);
 }
 
 export function buildShareUrl(state: GroupState): string {
@@ -168,19 +177,22 @@ export function buildShareUrl(state: GroupState): string {
   return origin + pathname + encodeShareHash(state);
 }
 
+/** A person's own link: the same payload, scoped to them, no group identity. */
+export function encodeProfileHash(person: Person): string {
+  return PROFILE_HASH_KEY + packPayload({ schemaVersion: SCHEMA_VERSION, groupId: '', name: '', people: [person] });
+}
+
+export function buildProfileUrl(person: Person): string {
+  const { origin, pathname } = window.location;
+  return origin + pathname + encodeProfileHash(person);
+}
+
 export class ShareDecodeError extends Error {}
 
-/** Decode a '#e=...' hash. Returns null if the hash isn't a share payload. */
-export function decodeShareHash(hash: string): GroupState | null {
-  if (hash.startsWith(LEGACY_HASH_KEY)) {
-    throw new ShareDecodeError(
-      'This link is from an older version of Reodite Schedules — ask your friend to refresh the app and copy a fresh one.',
-    );
-  }
-  if (!hash.startsWith(HASH_KEY)) return null;
+function unpackPayload(payload: string): GroupState {
   let packed: PackedGroup;
   try {
-    packed = JSON.parse(strFromU8(inflateSync(fromBase64Url(hash.slice(HASH_KEY.length)))));
+    packed = JSON.parse(strFromU8(inflateSync(fromBase64Url(payload))));
   } catch {
     throw new ShareDecodeError('This share link is damaged or truncated — ask for a fresh one.');
   }
@@ -211,4 +223,25 @@ export function decodeShareHash(hash: string): GroupState | null {
       return { id, handle, avatar: unpackAvatar(avatar), schedule, updatedAt, enabled: true };
     }),
   };
+}
+
+/** Decode a '#e=...' hash. Returns null if the hash isn't a share payload. */
+export function decodeShareHash(hash: string): GroupState | null {
+  if (hash.startsWith(LEGACY_HASH_KEY)) {
+    throw new ShareDecodeError(
+      'This link is from an older version of Reodite Schedules — ask your friend to refresh the app and copy a fresh one.',
+    );
+  }
+  if (!hash.startsWith(HASH_KEY)) return null;
+  return unpackPayload(hash.slice(HASH_KEY.length));
+}
+
+/** Decode a '#p=...' profile hash. Returns null if the hash isn't one. */
+export function decodeProfileHash(hash: string): Person | null {
+  if (!hash.startsWith(PROFILE_HASH_KEY)) return null;
+  const person = unpackPayload(hash.slice(PROFILE_HASH_KEY.length)).people[0];
+  if (!person) {
+    throw new ShareDecodeError('This profile link is damaged or truncated — ask for a fresh one.');
+  }
+  return person;
 }

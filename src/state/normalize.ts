@@ -1,5 +1,5 @@
-import type { GroupState, MeetingPattern, Person, Section } from '../types';
-import { SCHEMA_VERSION } from '../types';
+import type { Group, GroupMember, GroupState, Library, MeetingPattern, Person, Section } from '../types';
+import { MAX_GROUPS, SCHEMA_VERSION } from '../types';
 import { computeSectionId } from '../parse/sectionId';
 
 /**
@@ -86,6 +86,41 @@ export function normalizePerson(raw: unknown): Person | null {
     updatedAt: typeof p.updatedAt === 'string' ? p.updatedAt : new Date(0).toISOString(),
     enabled: p.enabled !== false,
   };
+}
+
+/**
+ * Tolerant load of v3 storage (roster + member references). Dangling and
+ * duplicate member references are dropped. Returns null when the shape is
+ * unusable so the caller can fall back to migration or a fresh library.
+ */
+export function normalizeLibrary(raw: unknown): Library | null {
+  const l = raw as Record<string, unknown>;
+  if (!l || !Array.isArray(l.people) || !Array.isArray(l.groups) || l.groups.length === 0) return null;
+
+  const people = l.people.map(normalizePerson).filter(Boolean) as Person[];
+  const ids = new Set(people.map((p) => p.id));
+
+  const groups: Group[] = [];
+  for (const rawG of l.groups.slice(0, MAX_GROUPS)) {
+    const g = rawG as Record<string, unknown>;
+    if (!g || typeof g.groupId !== 'string' || !g.groupId) continue;
+    const seen = new Set<string>();
+    const members: GroupMember[] = [];
+    if (Array.isArray(g.members)) {
+      for (const rawM of g.members) {
+        const m = rawM as Record<string, unknown>;
+        if (!m || typeof m.personId !== 'string') continue;
+        if (!ids.has(m.personId) || seen.has(m.personId)) continue;
+        seen.add(m.personId);
+        members.push({ personId: m.personId, enabled: m.enabled !== false });
+      }
+    }
+    groups.push({ groupId: g.groupId, name: typeof g.name === 'string' ? g.name : '', members });
+  }
+  if (groups.length === 0) return null;
+
+  const activeId = groups.some((g) => g.groupId === l.activeId) ? (l.activeId as string) : groups[0].groupId;
+  return { activeId, people, groups };
 }
 
 export function normalizeGroup(raw: unknown): GroupState {

@@ -100,6 +100,16 @@ input[type='text'] {
   flex: 1;
 }
 
+.people-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.people-btn svg {
+  flex-shrink: 0;
+}
+
 /* ---------- schedule picker ---------- */
 
 .sched-btn {
@@ -489,6 +499,22 @@ input[type='text'] {
 
 .person:hover .person__actions {
   opacity: 1;
+}
+
+/* roster rows (People modal): actions always visible, name not clickable */
+.person--roster .person__actions {
+  opacity: 1;
+}
+
+.person__main--static {
+  cursor: default;
+}
+
+.people-empty {
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0 0 12px;
 }
 
 .person--focused .person__actions {
@@ -1204,7 +1230,8 @@ input[type='text'] {
     opacity: 1;
   }
 
-  .map-open-btn__label {
+  .map-open-btn__label,
+  .people-btn__label {
     display: none;
   }
 }
