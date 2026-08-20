@@ -15,9 +15,10 @@ share link's URL hash, and persists locally in your browser.
 - **Merged blocks** — friends in the same section share ONE block (their avatars stack on it).
 - **Share links** — the whole group's schedules compress into a URL. Open a friend's link, add
   your schedule, copy the new link back to the chat. Newest data wins on merge; nothing is dropped.
-- **People list** — everyone you import (from any link, file, or upload) is saved ONCE on your
-  device. Schedules just reference them, so an updated person is current in every schedule that
-  includes them, and you can assemble new schedules from people you already have.
+- **People page** (`#people`) — everyone you import (from any link, file, or upload) is saved ONCE
+  on your device. Schedules just reference them, so an updated person is current in every schedule
+  that includes them. Search by name or course, pin favorites, hover for a week-at-a-glance
+  preview — and build schedules by selecting people and naming the result.
 - **Profile links** — every person also has their own compact link (`#p=…`) that shares just
   their schedule. Opening one saves/updates that person in your people list — no group involved.
 - **Person filter** — click anyone in the crew panel to hide/show them on the grid.

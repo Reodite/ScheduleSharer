@@ -170,6 +170,24 @@ export function removeFromRoster(lib: Library, personId: string): Library {
   };
 }
 
+/**
+ * Build a new schedule from selected roster people and make it active.
+ * Unknown ids are dropped, duplicates collapse. No-op at the group cap.
+ */
+export function createGroupWith(lib: Library, name: string, personIds: string[]): Library {
+  if (lib.groups.length >= MAX_GROUPS) return lib;
+  const roster = new Set(lib.people.map((p) => p.id));
+  const seen = new Set<string>();
+  const members: Group['members'] = [];
+  for (const id of personIds) {
+    if (!roster.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    members.push({ personId: id, enabled: true });
+  }
+  const group: Group = { groupId: crypto.randomUUID(), name, members };
+  return { ...lib, activeId: group.groupId, groups: [...lib.groups, group] };
+}
+
 /** Pin/unpin a roster person to the top of the People list. */
 export function togglePin(lib: Library, personId: string): Library {
   if (!lib.people.some((p) => p.id === personId)) return lib;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createGroupWith,
   deleteFromLibrary,
   duplicateInLibrary,
   importIntoLibrary,
@@ -195,6 +196,23 @@ describe('removeFromRoster', () => {
     expect(next.groups[0].members.map((m) => m.personId)).toEqual(['b']);
     expect(next.groups[1].members).toEqual([]);
     expect(next.pinnedIds).toEqual([]);
+  });
+});
+
+describe('createGroupWith', () => {
+  it('builds an active schedule from selected roster people, dropping unknowns and dupes', () => {
+    const start = lib([group('g1', 'A')], [person('a', 'alice'), person('b', 'bob')]);
+    const next = createGroupWith(start, 'Squad', ['a', 'b', 'a', 'ghost']);
+    expect(next.groups).toHaveLength(2);
+    const squad = next.groups[1];
+    expect(squad.name).toBe('Squad');
+    expect(squad.members.map((m) => m.personId)).toEqual(['a', 'b']);
+    expect(next.activeId).toBe(squad.groupId);
+  });
+
+  it('no-op at the group cap', () => {
+    const fullLib = lib(Array.from({ length: MAX_GROUPS }, (_, i) => group(`g${i}`, `Crew ${i}`)), [person('a', 'alice')]);
+    expect(createGroupWith(fullLib, 'Squad', ['a'])).toBe(fullLib);
   });
 });
 

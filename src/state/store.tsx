@@ -4,6 +4,7 @@ import type { Avatar, Group, GroupState, Library, Person, Schedule } from '../ty
 import { freshGroup, MAX_GROUPS } from '../types';
 import {
   activeGroup,
+  createGroupWith,
   deleteFromLibrary,
   duplicateInLibrary,
   importIntoLibrary,
@@ -41,6 +42,7 @@ export type Action =
   | { type: 'deleteGroup'; groupId: string }
   | { type: 'duplicateGroup'; groupId: string }
   | { type: 'createGroup'; name: string }
+  | { type: 'createGroupWithMembers'; name: string; personIds: string[] }
   | { type: 'importIncoming'; incoming: GroupState };
 
 function touch(p: Person): Person {
@@ -121,6 +123,8 @@ function reducer(lib: Library, action: Action): Library {
       const fresh = freshGroup(action.name);
       return { ...lib, activeId: fresh.groupId, groups: [...lib.groups, fresh] };
     }
+    case 'createGroupWithMembers':
+      return createGroupWith(lib, action.name, action.personIds);
     case 'importIncoming':
       return importIntoLibrary(lib, action.incoming).lib;
   }
