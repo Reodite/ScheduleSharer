@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { DayCode, Person, Schedule } from '../src/types';
 import { useStore } from './state/store';
-import { importIntoLibrary } from './state/library';
-import { decodeProfileHash, decodeShareHash, ShareDecodeError } from './state/shareLink';
+import { importIntoLibrary, importPrivateGroup } from './state/library';
+import { decodePrivateShareHash, decodeProfileHash, decodeShareHash, ShareDecodeError } from './state/shareLink';
 import { deriveTerms, defaultTermKey } from './features/terms';
 import { buildCalendar, expandBlocks } from './calendar/buildCalendar';
 import type { MergedBlock } from './calendar/buildCalendar';
@@ -27,6 +27,14 @@ const MapPage = lazy(() => import('./map/MapPage'));
 
 const MAP_HASH = '#map';
 const PEOPLE_HASH = '#people';
+
+function privateLinkToast(name: string | undefined, outcome: string, found: number, missing: number): string {
+  const label =
+    outcome === 'added' ? `Opened private schedule "${name || 'Untitled'}"` : 'Private link merged into your calendar';
+  if (found + missing === 0) return label;
+  if (missing === 0) return `${label} — all ${found} people found 🎉`;
+  return `${label} — ${found}/${found + missing} people found; the rest appear once you import their profile links`;
+}
 
 function useNow(): Date {
   const [now, setNow] = useState(() => new Date());
@@ -94,7 +102,19 @@ export default function App() {
     bootToastShown.current = true;
     if (bootImport.error) toast(bootImport.error, 'error');
     else if (bootImport.profileHandle) toast(`Saved ${bootImport.profileHandle}'s schedule to your people 🎉`);
-    else if (bootImport.outcome === 'full')
+    else if (bootImport.privateStats) {
+      if (bootImport.outcome === 'full')
+        toast('Schedule cache is full (5/5) — delete one from the schedule menu, then reopen the link.', 'error');
+      else
+        toast(
+          privateLinkToast(
+            bootImport.groupName,
+            bootImport.outcome ?? 'updated',
+            bootImport.privateStats.found,
+            bootImport.privateStats.missing,
+          ),
+        );
+    } else if (bootImport.outcome === 'full')
       toast('Saved the people to your list, but the schedule cache is full (5/5) — delete one to cache this schedule.', 'error');
     else if (bootImport.outcome === 'added')
       toast(`Saved new schedule "${bootImport.groupName || 'Untitled'}" from the link 🎉`);
@@ -113,6 +133,17 @@ export default function App() {
         if (person) {
           dispatch({ type: 'importProfile', person });
           toast(`Saved ${person.handle}'s schedule to your people 🎉`);
+          return;
+        }
+        const priv = decodePrivateShareHash(window.location.hash);
+        if (priv) {
+          const { outcome, found, missing } = importPrivateGroup(library, priv);
+          if (outcome === 'full') {
+            toast('Schedule cache is full (5/5) — delete one from the schedule menu, then reopen the link.', 'error');
+            return;
+          }
+          dispatch({ type: 'importPrivateIncoming', incoming: priv });
+          toast(privateLinkToast(priv.name, outcome, found, missing));
           return;
         }
         const incoming = decodeShareHash(window.location.hash);
@@ -183,9 +214,19 @@ export default function App() {
     <>
       <header className="topbar">
         <div className="wordmark">
-          <span className="wordmark__name">
+          <a
+            className="wordmark__name"
+            href={import.meta.env.BASE_URL}
+            title="Home"
+            onClick={(e) => {
+              // SPA home: drop any hash (share payloads, routes) without a reload
+              e.preventDefault();
+              window.location.hash = '';
+              history.replaceState(null, '', window.location.pathname);
+            }}
+          >
             Reodite <em>Schedules</em>
-          </span>
+          </a>
         </div>
         <button
           type="button"

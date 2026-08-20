@@ -120,6 +120,49 @@ export function importPeople(lib: Library, incoming: Person[]): Library {
 }
 
 /**
+ * Route a private (ids-only) share: same groupId routing as public links,
+ * but the roster is untouched — membership references the ids as-is, so
+ * people you already have appear immediately and unknown ids stay as
+ * pending members that fill in the moment their profiles are imported.
+ * Ids match exactly (no handle fallback): without the person's actual
+ * profile record, a private link reveals nothing.
+ */
+export function importPrivateGroup(
+  lib: Library,
+  incoming: { groupId: string; name: string; personIds: string[] },
+): { lib: Library; outcome: ImportOutcome; found: number; missing: number } {
+  const ids = [...new Set(incoming.personIds)];
+  const roster = new Set(lib.people.map((p) => p.id));
+  const found = ids.filter((id) => roster.has(id)).length;
+  const missing = ids.length - found;
+
+  if (lib.groups.some((g) => g.groupId === incoming.groupId)) {
+    return {
+      lib: {
+        ...lib,
+        activeId: incoming.groupId,
+        groups: lib.groups.map((g) =>
+          g.groupId === incoming.groupId ? { ...unionMembers(g, ids), name: incoming.name || g.name } : g,
+        ),
+      },
+      outcome: 'updated',
+      found,
+      missing,
+    };
+  }
+
+  if (lib.groups.length >= MAX_GROUPS) return { lib, outcome: 'full', found, missing };
+
+  const group = unionMembers({ groupId: incoming.groupId, name: incoming.name, members: [] }, ids);
+  return {
+    lib: { ...lib, activeId: group.groupId, groups: [...lib.groups, group] },
+    outcome: 'added',
+    found,
+    missing,
+  };
+}
+
+/**
  * Delete a group; its people STAY in the roster (they may be in other
  * groups). Never leaves the library without a group or an active id.
  */

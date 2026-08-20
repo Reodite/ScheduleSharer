@@ -21,6 +21,14 @@ import { computeSectionId } from '../parse/sectionId';
 
 const HASH_KEY = '#e=';
 const PROFILE_HASH_KEY = '#p=';
+/**
+ * Private share links (#i=...) carry NO schedule data at all — just the
+ * group identity, its name, and the member ids. They only render for
+ * someone whose roster already holds those people (via profile links or a
+ * public link); everyone else sees an empty schedule until the profiles
+ * arrive, at which point the members fill in automatically.
+ */
+const PRIVATE_HASH_KEY = '#i=';
 /** pre-deflate lz-string links — rejected with a refresh hint, not silence */
 const LEGACY_HASH_KEY = '#d=';
 /** Discord hard-caps messages at 2000 chars — the binding limit in practice */
@@ -244,4 +252,45 @@ export function decodeProfileHash(hash: string): Person | null {
     throw new ShareDecodeError('This profile link is damaged or truncated — ask for a fresh one.');
   }
   return person;
+}
+
+/** The ids-only payload a private link carries. */
+export interface PrivateShare {
+  groupId: string;
+  name: string;
+  personIds: string[];
+}
+
+type PackedPrivate = [number, string, string, string[]]; // version, groupId, name, member ids
+
+export function encodePrivateShareHash(state: GroupState): string {
+  const packed: PackedPrivate = [SCHEMA_VERSION, state.groupId, state.name, state.people.map((p) => p.id)];
+  return PRIVATE_HASH_KEY + toBase64Url(deflateSync(strToU8(JSON.stringify(packed)), { level: 9 }));
+}
+
+export function buildPrivateShareUrl(state: GroupState): string {
+  const { origin, pathname } = window.location;
+  return origin + pathname + encodePrivateShareHash(state);
+}
+
+/** Decode a '#i=...' private hash. Returns null if the hash isn't one. */
+export function decodePrivateShareHash(hash: string): PrivateShare | null {
+  if (!hash.startsWith(PRIVATE_HASH_KEY)) return null;
+  let packed: PackedPrivate;
+  try {
+    packed = JSON.parse(strFromU8(inflateSync(fromBase64Url(hash.slice(PRIVATE_HASH_KEY.length)))));
+  } catch {
+    throw new ShareDecodeError('This private link is damaged or truncated — ask for a fresh one.');
+  }
+  const [version, groupId, name, personIds] = packed;
+  if (typeof version !== 'number' || typeof groupId !== 'string' || !groupId || typeof name !== 'string' || !Array.isArray(personIds)) {
+    throw new ShareDecodeError('This private link is damaged or truncated — ask for a fresh one.');
+  }
+  if (version > SCHEMA_VERSION) {
+    throw new ShareDecodeError('This link was made with a newer version of Reodite Schedules — refresh the app.');
+  }
+  if (version < SCHEMA_VERSION) {
+    throw new ShareDecodeError('This link is from an older version — ask your friend to copy a fresh one.');
+  }
+  return { groupId, name, personIds: personIds.filter((id): id is string => typeof id === 'string') };
 }

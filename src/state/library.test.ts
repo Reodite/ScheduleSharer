@@ -5,6 +5,7 @@ import {
   duplicateInLibrary,
   importIntoLibrary,
   importPeople,
+  importPrivateGroup,
   migrateV2Groups,
   removeFromRoster,
   resolveGroup,
@@ -196,6 +197,48 @@ describe('removeFromRoster', () => {
     expect(next.groups[0].members.map((m) => m.personId)).toEqual(['b']);
     expect(next.groups[1].members).toEqual([]);
     expect(next.pinnedIds).toEqual([]);
+  });
+});
+
+describe('importPrivateGroup (ids-only links)', () => {
+  it('unknown groupId -> creates the group with pending members, roster untouched', () => {
+    const start = lib([group('g1', 'Crew')], [person('a', 'alice')]);
+    const { lib: next, outcome, found, missing } = importPrivateGroup(start, {
+      groupId: 'g9',
+      name: 'Secret crew',
+      personIds: ['a', 'b', 'b'],
+    });
+    expect(outcome).toBe('added');
+    expect(found).toBe(1);
+    expect(missing).toBe(1);
+    expect(next.people).toEqual(start.people); // no schedule data arrived
+    const g9 = next.groups.find((g) => g.groupId === 'g9')!;
+    expect(g9.members.map((m) => m.personId)).toEqual(['a', 'b']); // pending 'b' kept
+    expect(next.activeId).toBe('g9');
+    // only alice resolves until b's profile is imported…
+    expect(resolveGroup(next, g9).people.map((p) => p.handle)).toEqual(['alice']);
+    // …then the pending member fills in with no group change needed
+    const withB = importPeople(next, [person('b', 'bob')]);
+    expect(resolveGroup(withB, withB.groups.find((g) => g.groupId === 'g9')!).people.map((p) => p.handle)).toEqual([
+      'alice',
+      'bob',
+    ]);
+  });
+
+  it('known groupId -> unions member ids and adopts the name', () => {
+    const start = lib([group('g1', 'Crew', ['a'])], [person('a', 'alice')]);
+    const { lib: next, outcome } = importPrivateGroup(start, { groupId: 'g1', name: 'Crew v2', personIds: ['a', 'c'] });
+    expect(outcome).toBe('updated');
+    const g1 = next.groups[0];
+    expect(g1.name).toBe('Crew v2');
+    expect(g1.members.map((m) => m.personId)).toEqual(['a', 'c']);
+  });
+
+  it('at the cap: nothing changes', () => {
+    const fullLib = lib(Array.from({ length: MAX_GROUPS }, (_, i) => group(`g${i}`, `Crew ${i}`)));
+    const { lib: next, outcome } = importPrivateGroup(fullLib, { groupId: 'g-new', name: 'X', personIds: ['a'] });
+    expect(outcome).toBe('full');
+    expect(next).toBe(fullLib);
   });
 });
 

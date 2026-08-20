@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseScheduleXlsx } from '../parse/scheduleParser';
-import { decodeProfileHash, decodeShareHash, encodeProfileHash, encodeShareHash } from './shareLink';
+import {
+  decodePrivateShareHash,
+  decodeProfileHash,
+  decodeShareHash,
+  encodePrivateShareHash,
+  encodeProfileHash,
+  encodeShareHash,
+} from './shareLink';
 import { normalizeGroup } from './normalize';
 import type { GroupState, Person } from '../types';
 import { SCHEMA_VERSION } from '../types';
@@ -188,5 +195,27 @@ describe('profile links (#p=)', () => {
     expect(decodeProfileHash(encodeShareHash(makeGroup([p])))).toBeNull();
     expect(decodeProfileHash('')).toBeNull();
     expect(() => decodeProfileHash('#p=!!!garbage!!!')).toThrow();
+  });
+});
+
+describe('private links (#i=)', () => {
+  it('round-trips only the group identity and member ids — no schedule data', () => {
+    const state = makeGroup([makePerson('a1', 'alice', SPRING), makePerson('b2', 'bob', FALL)]);
+    const hash = encodePrivateShareHash(state);
+    expect(hash.startsWith('#i=')).toBe(true);
+    // dramatically smaller than the public link because nothing but ids travel
+    expect(hash.length).toBeLessThan(encodeShareHash(state).length / 4);
+    const decoded = decodePrivateShareHash(hash)!;
+    expect(decoded).toEqual({ groupId: 'g-test', name: 'Test Crew', personIds: ['a1', 'b2'] });
+    // and the payload genuinely contains no handles or courses
+    expect(hash.includes('alice')).toBe(false);
+  });
+
+  it('decoders stay in their lanes and garbage throws', () => {
+    const state = makeGroup([makePerson('a1', 'alice', SPRING)]);
+    expect(decodePrivateShareHash(encodeShareHash(state))).toBeNull();
+    expect(decodeShareHash(encodePrivateShareHash(state))).toBeNull();
+    expect(decodePrivateShareHash('')).toBeNull();
+    expect(() => decodePrivateShareHash('#i=!!!garbage!!!')).toThrow();
   });
 });
