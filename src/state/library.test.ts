@@ -7,6 +7,7 @@ import {
   migrateV2Groups,
   removeFromRoster,
   resolveGroup,
+  togglePin,
   upsertPeople,
 } from './library';
 import type { Group, GroupState, Library, Person } from '../types';
@@ -33,7 +34,7 @@ function group(groupId: string, name: string, memberIds: string[] = []): Group {
 }
 
 function lib(groups: Group[], people: Person[] = [], activeId = groups[0].groupId): Library {
-  return { activeId, people, groups };
+  return { activeId, people, groups, pinnedIds: [] };
 }
 
 const OLD = '2026-06-01T00:00:00.000Z';
@@ -83,6 +84,7 @@ describe('importIntoLibrary', () => {
   it('membership enabled preference survives an import', () => {
     const start: Library = {
       activeId: 'g1',
+      pinnedIds: [],
       people: [person('a', 'alice', OLD)],
       groups: [{ groupId: 'g1', name: 'Crew', members: [{ personId: 'a', enabled: false }] }],
     };
@@ -183,15 +185,26 @@ describe('duplicateInLibrary', () => {
 });
 
 describe('removeFromRoster', () => {
-  it('removes the person and strips them from every group', () => {
-    const start = lib(
-      [group('g1', 'A', ['a', 'b']), group('g2', 'B', ['a'])],
-      [person('a', 'alice'), person('b', 'bob')],
-    );
+  it('removes the person and strips them from every group and the pin list', () => {
+    const start = {
+      ...lib([group('g1', 'A', ['a', 'b']), group('g2', 'B', ['a'])], [person('a', 'alice'), person('b', 'bob')]),
+      pinnedIds: ['a'],
+    };
     const next = removeFromRoster(start, 'a');
     expect(next.people.map((p) => p.handle)).toEqual(['bob']);
     expect(next.groups[0].members.map((m) => m.personId)).toEqual(['b']);
     expect(next.groups[1].members).toEqual([]);
+    expect(next.pinnedIds).toEqual([]);
+  });
+});
+
+describe('togglePin', () => {
+  it('pins, unpins, and ignores unknown people', () => {
+    const start = lib([group('g1', 'A')], [person('a', 'alice')]);
+    const pinned = togglePin(start, 'a');
+    expect(pinned.pinnedIds).toEqual(['a']);
+    expect(togglePin(pinned, 'a').pinnedIds).toEqual([]);
+    expect(togglePin(start, 'ghost')).toBe(start);
   });
 });
 
@@ -199,6 +212,7 @@ describe('resolveGroup', () => {
   it('embeds roster people with the membership enabled flag; dangling refs skipped', () => {
     const l: Library = {
       activeId: 'g1',
+      pinnedIds: [],
       people: [person('a', 'alice'), person('b', 'bob')],
       groups: [
         {

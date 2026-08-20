@@ -112,6 +112,8 @@ export interface Library {
   activeId: string;
   people: Person[];
   groups: Group[];
+  /** roster people pinned to the top of the People list (local-only) */
+  pinnedIds: string[];
 }
 
 export function freshGroup(name = ''): Group {
