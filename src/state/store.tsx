@@ -9,6 +9,7 @@ import {
   duplicateInLibrary,
   importIntoLibrary,
   importPeople,
+  importPrivateGroup,
   migrateV2Groups,
   removeFromRoster,
   resolveGroup,
@@ -16,7 +17,8 @@ import {
 } from './library';
 import type { ImportOutcome } from './library';
 import { normalizeGroup, normalizeLibrary } from './normalize';
-import { decodeProfileHash, decodeShareHash, ShareDecodeError } from './shareLink';
+import { decodePrivateShareHash, decodeProfileHash, decodeShareHash, ShareDecodeError } from './shareLink';
+import type { PrivateShare } from './shareLink';
 
 const STORAGE_KEY = 'schedulesharer.v3';
 const V2_KEY = 'schedulesharer.v2';
@@ -43,6 +45,7 @@ export type Action =
   | { type: 'duplicateGroup'; groupId: string }
   | { type: 'createGroup'; name: string }
   | { type: 'createGroupWithMembers'; name: string; personIds: string[] }
+  | { type: 'importPrivateIncoming'; incoming: PrivateShare }
   | { type: 'importIncoming'; incoming: GroupState };
 
 function touch(p: Person): Person {
@@ -127,6 +130,8 @@ function reducer(lib: Library, action: Action): Library {
       return createGroupWith(lib, action.name, action.personIds);
     case 'importIncoming':
       return importIntoLibrary(lib, action.incoming).lib;
+    case 'importPrivateIncoming':
+      return importPrivateGroup(lib, action.incoming).lib;
   }
 }
 
@@ -136,6 +141,8 @@ export interface BootImport {
   importedPeople: string[];
   /** set when the boot hash was a profile link — one person into the roster */
   profileHandle?: string;
+  /** set when the boot hash was a private (ids-only) link */
+  privateStats?: { found: number; missing: number };
   error?: string;
 }
 
@@ -193,6 +200,14 @@ function boot(): { lib: Library; bootImport: BootImport | null } {
       return {
         lib: importPeople(lib, [person]),
         bootImport: { importedPeople: [], profileHandle: person.handle },
+      };
+    }
+    const priv = decodePrivateShareHash(window.location.hash);
+    if (priv) {
+      const { lib: next, outcome, found, missing } = importPrivateGroup(lib, priv);
+      return {
+        lib: next,
+        bootImport: { outcome, groupName: priv.name, importedPeople: [], privateStats: { found, missing } },
       };
     }
     const incoming = decodeShareHash(window.location.hash);

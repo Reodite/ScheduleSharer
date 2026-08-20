@@ -13,8 +13,11 @@ share link's URL hash, and persists locally in your browser.
 - **Master calendar** — Google-Calendar-style week view of everyone's courses; each block shows
   course, time, building + room, and the avatars of everyone in that section.
 - **Merged blocks** — friends in the same section share ONE block (their avatars stack on it).
-- **Share links** — the whole group's schedules compress into a URL. Open a friend's link, add
-  your schedule, copy the new link back to the chat. Newest data wins on merge; nothing is dropped.
+- **Share links** — two modes. Public (`#e=…`) compresses the whole group's schedules into a URL:
+  open a friend's link, add your schedule, copy the new link back to the chat (newest data wins on
+  merge; nothing is dropped). Private (`#i=…`) carries only the schedule identity and member ids —
+  no names, no courses — so it renders solely for people who already have those profiles; missing
+  members fill in automatically once their profile links are imported.
 - **People page** (`#people`) — everyone you import (from any link, file, or upload) is saved ONCE
   on your device. Schedules just reference them, so an updated person is current in every schedule
   that includes them. Search by name or course, pin favorites, hover for a week-at-a-glance

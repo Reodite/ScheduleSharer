@@ -89,9 +89,12 @@ export function normalizePerson(raw: unknown): Person | null {
 }
 
 /**
- * Tolerant load of v3 storage (roster + member references). Dangling and
- * duplicate member references are dropped. Returns null when the shape is
- * unusable so the caller can fall back to migration or a fresh library.
+ * Tolerant load of v3 storage (roster + member references). Duplicate
+ * member references are dropped; DANGLING ones are kept — a private
+ * (ids-only) link can reference people who haven't been imported yet, and
+ * those pending members must survive reloads so they fill in when their
+ * profiles arrive. Returns null when the shape is unusable so the caller
+ * can fall back to migration or a fresh library.
  */
 export function normalizeLibrary(raw: unknown): Library | null {
   const l = raw as Record<string, unknown>;
@@ -109,8 +112,7 @@ export function normalizeLibrary(raw: unknown): Library | null {
     if (Array.isArray(g.members)) {
       for (const rawM of g.members) {
         const m = rawM as Record<string, unknown>;
-        if (!m || typeof m.personId !== 'string') continue;
-        if (!ids.has(m.personId) || seen.has(m.personId)) continue;
+        if (!m || typeof m.personId !== 'string' || seen.has(m.personId)) continue;
         seen.add(m.personId);
         members.push({ personId: m.personId, enabled: m.enabled !== false });
       }
