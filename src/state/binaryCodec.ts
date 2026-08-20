@@ -381,7 +381,6 @@ function encodeGroup(state: GroupState): Uint8Array {
   /* ---- write ---- */
   w.writeByte(MAGIC);
   w.writeByte(WIRE_FORMAT);
-  w.writeByte(0); // flags, reserved; readers ignore unknown bits
 
   writeId(w, state.groupId || '');
   w.writeString(state.name || '');
@@ -432,19 +431,16 @@ function encodeGroup(state: GroupState): Uint8Array {
     const mark: string = isEmoji
       ? p.avatar.emoji || ''
       : p.avatar.initials || initialsFor(p.handle);
-    w.writeByte(isEmoji ? 0 : 1);
-    w.writeString(mark);
+    const markBytes = new TextEncoder().encode(mark);
+    // kind bit packed into low bit of mark length so emoji/initials costs no extra byte
+    w.writeVarint((markBytes.length << 1) | (isEmoji ? 0 : 1));
+    w.writeBytes(markBytes);
     w.writeString(p.avatar.color);
     const seconds = Math.floor(new Date(p.updatedAt).getTime() / 1000);
     w.writeVarint(Number.isFinite(seconds) ? Math.max(0, seconds) : 0);
     const indices = personSchedules[i];
-    if (indices && indices.length > 0) {
-      w.writeByte(1);
-      w.writeVarint(indices.length);
-      for (const idx of indices) w.writeVarint(idx);
-    } else {
-      w.writeByte(0);
-    }
+    w.writeVarint(indices && indices.length > 0 ? indices.length : 0);
+    if (indices) for (const idx of indices) w.writeVarint(idx);
   }
 
   return w.toBytes();
@@ -454,7 +450,6 @@ function encodePrivate(groupId: string, name: string, personIds: string[]): Uint
   const w = new Writer();
   w.writeByte(MAGIC);
   w.writeByte(WIRE_FORMAT);
-  w.writeByte(0);
   writeId(w, groupId);
   w.writeString(name);
   w.writeVarint(personIds.length);
@@ -470,9 +465,6 @@ function decodeGroup(bytes: Uint8Array): GroupState {
   const ver = r.readByte();
   if (magic !== MAGIC) throw new Error(`bad magic 0x${magic.toString(16)}`);
   if (ver !== WIRE_FORMAT) throw new Error(`bad wire version ${ver}`);
-
-  const flags = r.readByte();
-  if (flags !== 0) throw new Error(`unknown flags 0x${flags.toString(16)}`);
 
   const groupId = readId(r);
   const name = r.readString();
@@ -553,21 +545,22 @@ function decodeGroup(bytes: Uint8Array): GroupState {
   for (let i = 0; i < personCount; i++) {
     const id = readId(r);
     const handle = r.readString();
-    const kind = r.readByte();
-    const mark = r.readString();
+    const packedMark = r.readVarint();
+    const isEmoji = (packedMark & 1) === 0;
+    const markLen = packedMark >>> 1;
+    const mark = markLen ? new TextDecoder().decode(r.readBytes(markLen)) : '';
     const color = r.readString();
     const seconds = r.readVarint();
-    const hasSchedule = r.readByte();
     const updatedAtIso = new Date(seconds * 1000).toISOString();
     const avatar: Avatar =
-      kind === 0
+      isEmoji
         ? { kind: 'emoji', emoji: mark, color }
         : { kind: 'initials', initials: mark, color };
 
-    if (hasSchedule) {
-      const sc = r.readVarint();
+    const sectionCountForPerson = r.readVarint();
+    if (sectionCountForPerson > 0) {
       const sections: Section[] = [];
-      for (let j = 0; j < sc; j++) {
+      for (let j = 0; j < sectionCountForPerson; j++) {
         const ref = r.readVarint();
         const s = sectionRows[ref];
         if (!s) throw new Error(`section ref ${ref} out of bounds`);
@@ -609,9 +602,6 @@ function decodePrivate(bytes: Uint8Array): { groupId: string; name: string; pers
   const ver = r.readByte();
   if (magic !== MAGIC) throw new Error(`bad magic 0x${magic.toString(16)}`);
   if (ver !== WIRE_FORMAT) throw new Error(`bad wire version ${ver}`);
-
-  const flags = r.readByte();
-  if (flags !== 0) throw new Error(`unknown flags 0x${flags.toString(16)}`);
 
   const groupId = readId(r);
   const name = r.readString();
