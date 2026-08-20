@@ -18,6 +18,7 @@ import { ProfileModal } from './ui/ProfileModal';
 import type { ProfileDraft } from './ui/ProfileModal';
 import { ScheduleManager } from './ui/ScheduleManager';
 import { PeoplePage } from './ui/PeoplePage';
+import { AboutPage } from './ui/AboutPage';
 import { useToast } from './ui/Toast';
 import { dayCodeOf, minutesToFullLabel, toISODate } from './util/time';
 
@@ -27,6 +28,7 @@ const MapPage = lazy(() => import('./map/MapPage'));
 
 const MAP_HASH = '#map';
 const PEOPLE_HASH = '#people';
+const ABOUT_HASH = '#about';
 
 function privateLinkToast(name: string | undefined, outcome: string, found: number, missing: number): string {
   const label =
@@ -92,6 +94,19 @@ export default function App() {
   }
   function closePeople() {
     if (peopleOpenedHere.current) window.history.back();
+    else window.location.hash = '';
+  }
+
+  // About page: same hash-route mechanics, reached from the wordmark.
+  const [showAbout, setShowAbout] = useState(() => window.location.hash === ABOUT_HASH);
+  const aboutOpenedHere = useRef(false);
+  useEffect(() => {
+    const sync = () => setShowAbout(window.location.hash === ABOUT_HASH);
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
+  function closeAbout() {
+    if (aboutOpenedHere.current) window.history.back();
     else window.location.hash = '';
   }
 
@@ -216,13 +231,10 @@ export default function App() {
         <div className="wordmark">
           <a
             className="wordmark__name"
-            href={import.meta.env.BASE_URL}
-            title="Home"
-            onClick={(e) => {
-              // SPA home: drop any hash (share payloads, routes) without a reload
-              e.preventDefault();
-              window.location.hash = '';
-              history.replaceState(null, '', window.location.pathname);
+            href={ABOUT_HASH}
+            title="About Reodite Schedules"
+            onClick={() => {
+              aboutOpenedHere.current = true;
             }}
           >
             Reodite <em>Schedules</em>
@@ -369,6 +381,7 @@ export default function App() {
       )}
       {showManager && <ScheduleManager onClose={() => setShowManager(false)} />}
       {showPeople && <PeoplePage onClose={closePeople} onEdit={(person) => setDraft({ person })} />}
+      {showAbout && <AboutPage onClose={closeAbout} />}
       {draft && (
         <ProfileModal
           draft={draft}
