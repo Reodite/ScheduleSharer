@@ -714,9 +714,9 @@ input[type='text'] {
   }
 }
 
-/* ---------- about page ---------- */
+/* ---------- home page ---------- */
 
-.aboutpage {
+.homepage {
   position: fixed;
   inset: 0;
   z-index: 60;
@@ -727,106 +727,77 @@ input[type='text'] {
     var(--bg);
 }
 
-.aboutpage__head {
+.homepage__head {
   display: flex;
   align-items: center;
   padding: 10px 14px;
 }
 
-.aboutpage__body {
+.homepage__body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 8px 24px 48px;
+  padding: 0 24px 48px;
 }
 
-.aboutpage__inner {
+.homepage__body .hero {
+  margin-top: 4vh;
+}
+
+.homepage__inner {
   max-width: 560px;
-  margin: 0 auto;
+  margin: 40px auto 0;
 }
 
-.aboutpage__wordmark {
-  font-size: clamp(32px, 5vw, 44px);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  margin: 12px 0 4px;
-}
-
-.aboutpage__wordmark em {
-  font-style: normal;
-  color: var(--accent);
-}
-
-.aboutpage__tagline {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  margin: 0 0 22px;
-}
-
-.aboutpage__lead {
-  color: var(--text-dim);
-  font-size: 14.5px;
-  line-height: 1.65;
-  margin: 0 0 26px;
-}
-
-.aboutpage__section {
+.homepage__section {
   font-family: var(--font-mono);
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-faint);
-  margin: 26px 0 10px;
+  margin: 0 0 10px;
 }
 
-.aboutpage__steps {
-  margin: 0;
-  padding-left: 20px;
-  color: var(--text-dim);
-  font-size: 13.5px;
-  line-height: 1.65;
-}
-
-.aboutpage__steps li + li {
-  margin-top: 6px;
-}
-
-.aboutpage__links {
+.homepage__links {
   margin: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.aboutpage__links > div {
+.homepage__links > div {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 11px 14px;
 }
 
-.aboutpage__links dt {
+.homepage__links dt {
   font-weight: 700;
   font-size: 13.5px;
   margin-bottom: 3px;
 }
 
-.aboutpage__links dd {
+.homepage__links dd {
   margin: 0;
   color: var(--text-dim);
   font-size: 13px;
   line-height: 1.55;
 }
 
-.aboutpage__cta {
-  margin-top: 28px;
+.homepage__note {
+  color: var(--text-faint);
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 16px 0 0;
 }
 
-.aboutpage__foot {
+.homepage__cta {
+  margin-top: 22px;
+}
+
+.homepage__foot {
   margin-top: 34px;
   padding-top: 14px;
   border-top: 1px solid var(--line);
@@ -835,13 +806,13 @@ input[type='text'] {
   color: var(--text-faint);
 }
 
-.aboutpage__foot a {
+.homepage__foot a {
   color: var(--text-dim);
   text-decoration: none;
   border-bottom: 1px solid var(--line-strong);
 }
 
-.aboutpage__foot a:hover {
+.homepage__foot a:hover {
   color: var(--accent);
   border-color: var(--accent);
 }

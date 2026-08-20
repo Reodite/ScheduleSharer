@@ -18,7 +18,8 @@ import { ProfileModal } from './ui/ProfileModal';
 import type { ProfileDraft } from './ui/ProfileModal';
 import { ScheduleManager } from './ui/ScheduleManager';
 import { PeoplePage } from './ui/PeoplePage';
-import { AboutPage } from './ui/AboutPage';
+import { HomePage } from './ui/HomePage';
+import { Hero } from './ui/Hero';
 import { useToast } from './ui/Toast';
 import { dayCodeOf, minutesToFullLabel, toISODate } from './util/time';
 
@@ -28,7 +29,7 @@ const MapPage = lazy(() => import('./map/MapPage'));
 
 const MAP_HASH = '#map';
 const PEOPLE_HASH = '#people';
-const ABOUT_HASH = '#about';
+const HOME_HASH = '#home';
 
 function privateLinkToast(name: string | undefined, outcome: string, found: number, missing: number): string {
   const label =
@@ -97,16 +98,16 @@ export default function App() {
     else window.location.hash = '';
   }
 
-  // About page: same hash-route mechanics, reached from the wordmark.
-  const [showAbout, setShowAbout] = useState(() => window.location.hash === ABOUT_HASH);
-  const aboutOpenedHere = useRef(false);
+  // Home page: same hash-route mechanics, reached from the wordmark.
+  const [showHome, setShowHome] = useState(() => window.location.hash === HOME_HASH);
+  const homeOpenedHere = useRef(false);
   useEffect(() => {
-    const sync = () => setShowAbout(window.location.hash === ABOUT_HASH);
+    const sync = () => setShowHome(window.location.hash === HOME_HASH);
     window.addEventListener('hashchange', sync);
     return () => window.removeEventListener('hashchange', sync);
   }, []);
-  function closeAbout() {
-    if (aboutOpenedHere.current) window.history.back();
+  function closeHome() {
+    if (homeOpenedHere.current) window.history.back();
     else window.location.hash = '';
   }
 
@@ -215,6 +216,7 @@ export default function App() {
       };
       dispatch({ type: 'addPerson', person });
       toast(`${handle} is on the calendar — hit "Copy share link" to pass it on`);
+      if (window.location.hash === HOME_HASH) window.location.hash = '';
     }
     setDraft(null);
   }
@@ -231,10 +233,10 @@ export default function App() {
         <div className="wordmark">
           <a
             className="wordmark__name"
-            href={ABOUT_HASH}
-            title="About Reodite Schedules"
+            href={HOME_HASH}
+            title="Home — what this is & how to add your schedule"
             onClick={() => {
-              aboutOpenedHere.current = true;
+              homeOpenedHere.current = true;
             }}
           >
             Reodite <em>Schedules</em>
@@ -306,30 +308,7 @@ export default function App() {
       </header>
 
       {empty ? (
-        <div className="hero">
-          <h1>
-            Every schedule.
-            <br />
-            One <em>master grid</em>.
-          </h1>
-          <p>
-            Drop in your Workday schedule export, pick a handle, and share one link with the group
-            chat. Everyone's courses land on a single weekly calendar — see who's in your lectures,
-            when everyone's free, and who's in class right now.
-          </p>
-          <DropZone hero onParsed={onParsed} />
-          <div className="hero__steps">
-            <span className="hero__step">
-              <b>01</b> export .xlsx from Workday
-            </span>
-            <span className="hero__step">
-              <b>02</b> drop it here · pick a handle
-            </span>
-            <span className="hero__step">
-              <b>03</b> copy the link · send to the chat
-            </span>
-          </div>
-        </div>
+        <Hero onParsed={onParsed} />
       ) : (
         <div className="layout">
           <aside className="sidebar">
@@ -381,7 +360,7 @@ export default function App() {
       )}
       {showManager && <ScheduleManager onClose={() => setShowManager(false)} />}
       {showPeople && <PeoplePage onClose={closePeople} onEdit={(person) => setDraft({ person })} />}
-      {showAbout && <AboutPage onClose={closeAbout} />}
+      {showHome && <HomePage onClose={closeHome} onParsed={onParsed} />}
       {draft && (
         <ProfileModal
           draft={draft}
