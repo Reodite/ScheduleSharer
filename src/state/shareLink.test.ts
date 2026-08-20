@@ -62,6 +62,8 @@ describe('share link round-trip', () => {
     expect(cogs.courseCode).toBe('COGS_V 303');
     expect(cogs.meetings).toHaveLength(1);
     expect(cogs.meetings[0]).toMatchObject({ startMin: 570, endMin: 660, room: 'D322', floor: '3' });
+    expect(cogs.meetings[0].buildingCode).toBe('BUCH');
+    expect(cogs.meetings[0].buildingName).toBe('Buchanan Building');
     expect(cogs.termStart).toBe('2027-01-06');
     expect(cogs.termEnd).toBe('2027-04-12');
     expect(cogs.instructors).toEqual(['Kelsey Allen']);
@@ -110,6 +112,28 @@ describe('share link round-trip', () => {
 
   it('rejects pre-deflate #d= links with a refresh hint', () => {
     expect(() => decodeShareHash('#d=anything')).toThrow(/older version/);
+  });
+});
+
+describe('building index encoding', () => {
+  it('round-trips an on-map building via the static index, restoring the human name', () => {
+    const p = makePerson('a1', 'alice', SPRING);
+    const section = p.schedule!.sections[0];
+    if (!section.meetings[0].buildingCode) throw new Error('fixture has no buildingCode');
+    const decoded = decodeShareHash(encodeShareHash(makeGroup([p])))!;
+    const m = decoded.people[0].schedule!.sections[0].meetings[0];
+    expect(m.buildingCode).toBe('BUCH');
+    expect(m.buildingName).toBe('Buchanan Building');
+  });
+
+  it('writes only the code on the wire for off-map buildings (name is not preserved)', () => {
+    const p = makePerson('a1', 'alice', SPRING);
+    p.schedule!.sections[0].meetings[0].buildingCode = 'XXYY';
+    p.schedule!.sections[0].meetings[0].buildingName = 'Off-Map Building';
+    const decoded = decodeShareHash(encodeShareHash(makeGroup([p])))!;
+    const m = decoded.people[0].schedule!.sections[0].meetings[0];
+    expect(m.buildingCode).toBe('XXYY');
+    expect(m.buildingName).toBeUndefined();
   });
 });
 

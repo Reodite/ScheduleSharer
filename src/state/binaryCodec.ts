@@ -22,6 +22,7 @@ import type {
   Section,
 } from '../types';
 import { computeSectionId } from '../parse/sectionId';
+import { BUILDINGS } from './buildingTable';
 
 /** Wire-format version. Bump to break compatibility. */
 export const WIRE_FORMAT = 0x05;
@@ -32,6 +33,15 @@ const MAGIC = 0x52; // 'R'
 const DAYTIME_BASE_MINS = 7 * 60;
 /** 96 covers 0:00–23:45 inclusive. */
 const QUARTER_MAX = 95;
+
+/** code -> index into BUILDINGS; built lazily. */
+let buildingIndex: Map<string, number> | null = null;
+function codeToIndex(code: string): number | undefined {
+  if (!buildingIndex) {
+    buildingIndex = new Map(BUILDINGS.map((b, i) => [b[0], i]));
+  }
+  return buildingIndex.get(code);
+}
 
 // base64url
 
@@ -205,15 +215,23 @@ class Reader {
 // meeting flag packing                                                      
 
 const F_CAMPUS_IS_V = 1 << 0;
-const F_HAS_BUILDING_CODE = 1 << 1;
-const F_HAS_BUILDING_NAME = 1 << 2;
+const F_BUILDING_INDEX = 1 << 1;
+const F_BUILDING_STRINGS = 1 << 2;
 const F_HAS_FLOOR = 1 << 3;
 const F_HAS_ROOM = 1 << 4;
 
 function packMeetingFlags(m: MeetingPattern): number {
   let f = m.campus === 'UBCV' ? F_CAMPUS_IS_V : 0;
-  if (m.buildingCode) f |= F_HAS_BUILDING_CODE;
-  if (m.buildingName) f |= F_HAS_BUILDING_NAME;
+  if (m.buildingCode) {
+    const idx = codeToIndex(m.buildingCode);
+    if (idx !== undefined) {
+      f |= F_BUILDING_INDEX;
+    } else {
+      f |= F_BUILDING_STRINGS;
+    }
+  } else if (m.buildingName) {
+    f |= F_BUILDING_STRINGS;
+  }
   if (m.floor) f |= F_HAS_FLOOR;
   if (m.room) f |= F_HAS_ROOM;
   return f;
@@ -326,12 +344,17 @@ function encodeGroup(state: GroupState): Uint8Array {
     w.writeZigZag(termEndDays);
     w.writeVarint(s.meetings.length);
     for (const m of s.meetings) {
+      const flags = packMeetingFlags(m);
       w.writeByte(packDayMask(m.days));
-      w.writeByte(packMeetingFlags(m));
+      w.writeByte(flags);
       w.writeByte(startSlot(m.startMin));
       w.writeByte(durationSlots(m.startMin, m.endMin));
-      if (m.buildingCode) w.writeString(m.buildingCode);
-      if (m.buildingName) w.writeString(m.buildingName);
+      if (flags & F_BUILDING_INDEX) w.writeVarint(codeToIndex(m.buildingCode!)!);
+      else if (flags & F_BUILDING_STRINGS) {
+        // wire carries only the code; the name comes from the bundled
+        // BUILDINGS table on decode (or stays blank for genuinely off-map codes)
+        w.writeString(m.buildingCode);
+      }
       if (m.floor) w.writeString(m.floor);
       if (m.room) w.writeString(m.room);
     }
@@ -421,8 +444,17 @@ function decodeGroup(bytes: Uint8Array): GroupState {
         startMin + durQ * 15,
         QUARTER_MAX * 15 + 45,
       );
-      const buildingCode = f & F_HAS_BUILDING_CODE ? r.readString() : undefined;
-      const buildingName = f & F_HAS_BUILDING_NAME ? r.readString() : undefined;
+      let buildingCode: string | undefined;
+      let buildingName: string | undefined;
+      if (f & F_BUILDING_INDEX) {
+        const idx = r.readVarint();
+        const b = BUILDINGS[idx];
+        if (!b) throw new RangeError(`building index ${idx} out of bounds`);
+        [buildingCode, buildingName] = b;
+      } else if (f & F_BUILDING_STRINGS) {
+        // wire carries only the code; off-map names aren't preserved
+        buildingCode = r.readString() || undefined;
+      }
       const floor = f & F_HAS_FLOOR ? r.readString() : undefined;
       const room = f & F_HAS_ROOM ? r.readString() : undefined;
       const campus: MeetingPattern['campus'] = f & F_CAMPUS_IS_V ? 'UBCV' : 'UBCO';
