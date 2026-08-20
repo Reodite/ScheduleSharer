@@ -746,55 +746,12 @@ input[type='text'] {
 
 .homepage__inner {
   max-width: 560px;
-  margin: 40px auto 0;
-}
-
-.homepage__section {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  margin: 0 0 10px;
-}
-
-.homepage__links {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.homepage__links > div {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  padding: 11px 14px;
-}
-
-.homepage__links dt {
-  font-weight: 700;
-  font-size: 13.5px;
-  margin-bottom: 3px;
-}
-
-.homepage__links dd {
-  margin: 0;
-  color: var(--text-dim);
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.homepage__note {
-  color: var(--text-faint);
-  font-size: 12.5px;
-  line-height: 1.6;
-  margin: 16px 0 0;
+  margin: 34px auto 0;
+  text-align: center;
 }
 
 .homepage__cta {
-  margin-top: 22px;
+  margin-top: 0;
 }
 
 .homepage__foot {

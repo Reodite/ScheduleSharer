@@ -17,11 +17,6 @@ export function Hero({ onParsed }: Props) {
         <br />
         One <em>master grid</em>.
       </h1>
-      <p>
-        Drop in your Workday schedule export, pick a handle, and share one link with the group
-        chat. Everyone's courses land on a single weekly calendar — see who's in your lectures,
-        when everyone's free, and who's in class right now.
-      </p>
       <DropZone hero onParsed={onParsed} />
       <div className="hero__steps">
         <span className="hero__step">
