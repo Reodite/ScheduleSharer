@@ -11,6 +11,7 @@ import {
   migrateV2Groups,
   removeFromRoster,
   resolveGroup,
+  togglePin,
 } from './library';
 import type { ImportOutcome } from './library';
 import { normalizeGroup, normalizeLibrary } from './normalize';
@@ -26,6 +27,7 @@ export type Action =
   | { type: 'editPerson'; id: string; handle?: string; avatar?: Avatar }
   | { type: 'replaceSchedule'; id: string; schedule: Schedule }
   | { type: 'removeFromRoster'; personId: string } // also strips them from every group
+  | { type: 'togglePin'; personId: string }
   | { type: 'importProfile'; person: Person }
   // membership actions on the ACTIVE schedule
   | { type: 'addToGroup'; personId: string }
@@ -70,6 +72,8 @@ function reducer(lib: Library, action: Action): Library {
       return updateRosterPerson(lib, action.id, (p) => touch({ ...p, schedule: action.schedule }));
     case 'removeFromRoster':
       return removeFromRoster(lib, action.personId);
+    case 'togglePin':
+      return togglePin(lib, action.personId);
     case 'importProfile':
       return importPeople(lib, [action.person]);
 
@@ -133,7 +137,7 @@ export interface BootImport {
 
 function freshLibrary(): Library {
   const g = freshGroup('My schedule');
-  return { activeId: g.groupId, people: [], groups: [g] };
+  return { activeId: g.groupId, people: [], groups: [g], pinnedIds: [] };
 }
 
 function loadLibrary(): Library {

@@ -120,7 +120,10 @@ export function normalizeLibrary(raw: unknown): Library | null {
   if (groups.length === 0) return null;
 
   const activeId = groups.some((g) => g.groupId === l.activeId) ? (l.activeId as string) : groups[0].groupId;
-  return { activeId, people, groups };
+  const pinnedIds = Array.isArray(l.pinnedIds)
+    ? (l.pinnedIds as unknown[]).filter((id): id is string => typeof id === 'string' && ids.has(id))
+    : [];
+  return { activeId, people, groups, pinnedIds };
 }
 
 export function normalizeGroup(raw: unknown): GroupState {

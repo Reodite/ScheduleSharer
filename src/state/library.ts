@@ -94,6 +94,7 @@ export function importIntoLibrary(
   if (targetId !== null) {
     return {
       lib: {
+        ...lib,
         activeId: targetId,
         people,
         groups: lib.groups.map((g) =>
@@ -108,7 +109,7 @@ export function importIntoLibrary(
 
   const group = unionMembers({ groupId: incoming.groupId, name: incoming.name, members: [] }, resolvedIds);
   return {
-    lib: { activeId: group.groupId, people, groups: [...lib.groups, group] },
+    lib: { ...lib, activeId: group.groupId, people, groups: [...lib.groups, group] },
     outcome: 'added',
   };
 }
@@ -160,11 +161,23 @@ export function removeFromRoster(lib: Library, personId: string): Library {
   return {
     ...lib,
     people: lib.people.filter((p) => p.id !== personId),
+    pinnedIds: lib.pinnedIds.filter((id) => id !== personId),
     groups: lib.groups.map((g) =>
       g.members.some((m) => m.personId === personId)
         ? { ...g, members: g.members.filter((m) => m.personId !== personId) }
         : g,
     ),
+  };
+}
+
+/** Pin/unpin a roster person to the top of the People list. */
+export function togglePin(lib: Library, personId: string): Library {
+  if (!lib.people.some((p) => p.id === personId)) return lib;
+  return {
+    ...lib,
+    pinnedIds: lib.pinnedIds.includes(personId)
+      ? lib.pinnedIds.filter((id) => id !== personId)
+      : [...lib.pinnedIds, personId],
   };
 }
 
@@ -209,8 +222,8 @@ export function migrateV2Groups(oldGroups: GroupState[], activeId?: string): Lib
   }
   if (groups.length === 0) {
     const fresh = freshGroup('My schedule');
-    return { activeId: fresh.groupId, people, groups: [fresh] };
+    return { activeId: fresh.groupId, people, groups: [fresh], pinnedIds: [] };
   }
   const active = activeId && groups.some((g) => g.groupId === activeId) ? activeId : groups[0].groupId;
-  return { activeId: active, people, groups };
+  return { activeId: active, people, groups, pinnedIds: [] };
 }
