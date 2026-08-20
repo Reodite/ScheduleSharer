@@ -242,8 +242,8 @@ function readId(r: Reader): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
-// section flag bits (one byte after the dept prefix string)
-const SECTION_CAMPUS_IS_V = 1 << 0;
+// campus bit packed into the low bit of the dept-prefix length varint
+const SECTION_CAMPUS_IS_V = 1;
 
 // meeting flag packing
 
@@ -390,8 +390,9 @@ function encodeGroup(state: GroupState): Uint8Array {
   for (const s of sectionTable) {
     const [dept, num] = splitCourseCode(s.courseCode);
     const { prefix, isV } = splitDeptSuffix(dept);
-    w.writeString(prefix);
-    w.writeByte(isV ? SECTION_CAMPUS_IS_V : 0);
+    const prefixBytes = new TextEncoder().encode(prefix);
+    w.writeVarint((prefixBytes.length << 1) | (isV ? SECTION_CAMPUS_IS_V : 0));
+    w.writeBytes(prefixBytes);
     w.writeVarint(num);
     w.writeString(s.title);
     w.writeString(s.component);
@@ -479,9 +480,11 @@ function decodeGroup(bytes: Uint8Array): GroupState {
   const sectionCount = r.readVarint();
   const sectionRows: Section[] = [];
   for (let i = 0; i < sectionCount; i++) {
-    const deptPrefix = r.readString();
-    const isV = (r.readByte() & SECTION_CAMPUS_IS_V) !== 0;
+    const packedDept = r.readVarint();
+    const isV = (packedDept & SECTION_CAMPUS_IS_V) !== 0;
     const campus: MeetingPattern['campus'] = isV ? 'UBCV' : 'UBCO';
+    const prefixLen = packedDept >>> 1;
+    const deptPrefix = prefixLen ? new TextDecoder().decode(r.readBytes(prefixLen)) : '';
     const num = r.readVarint();
     const dept = deptPrefix ? `${deptPrefix}_${isV ? 'V' : 'O'}` : '';
     const title = r.readString();
