@@ -1,14 +1,18 @@
 import { useEffect } from 'react';
+import type { Schedule } from '../types';
+import { Hero } from './Hero';
 
 interface Props {
   onClose: () => void;
+  /** dropping an xlsx here works exactly like on the calendar's empty state */
+  onParsed: (schedule: Schedule, fileName: string) => void;
 }
 
 /**
- * About page (#about) — where the wordmark leads. What the app is, how the
- * three link kinds work, and a way back to the calendar.
+ * Home page (#home) — where the wordmark leads. The classic hero (pitch,
+ * working drop zone, upload steps) with the app explainer beneath it.
  */
-export function AboutPage({ onClose }: Props) {
+export function HomePage({ onClose, onParsed }: Props) {
   // fixed full-screen page — lock the calendar's scrollbar away while open
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -19,38 +23,19 @@ export function AboutPage({ onClose }: Props) {
   }, []);
 
   return (
-    <div className="aboutpage">
-      <header className="aboutpage__head">
+    <div className="homepage">
+      <header className="homepage__head">
         <button type="button" className="btn btn--ghost btn--icon" onClick={onClose} aria-label="Back to calendar" title="Back to calendar">
           ←
         </button>
       </header>
 
-      <div className="aboutpage__body">
-        <div className="aboutpage__inner">
-          <h1 className="aboutpage__wordmark">
-            Reodite <em>Schedules</em>
-          </h1>
-          <p className="aboutpage__tagline">every schedule · one master grid</p>
+      <div className="homepage__body">
+        <Hero onParsed={onParsed} />
 
-          <p className="aboutpage__lead">
-            Drop in your Workday schedule export and share one link with the group chat — everyone's
-            courses land on a single weekly calendar. See who's in your lectures, when everyone's
-            free, and who's in class right now on the campus map. No accounts, no backend: your data
-            lives in your browser and inside the links you choose to share.
-          </p>
-
-          <h2 className="aboutpage__section">Getting started</h2>
-          <ol className="aboutpage__steps">
-            <li>
-              In Workday: <b>Academics → Registration &amp; Courses → View Saved Schedule</b>, export to Excel.
-            </li>
-            <li>Drop the .xlsx on the calendar and pick a handle + avatar.</li>
-            <li>Copy a share link and send it to the chat — friends add theirs and share back.</li>
-          </ol>
-
-          <h2 className="aboutpage__section">Three kinds of links</h2>
-          <dl className="aboutpage__links">
+        <div className="homepage__inner">
+          <h2 className="homepage__section">Three kinds of links</h2>
+          <dl className="homepage__links">
             <div>
               <dt>Public share link</dt>
               <dd>carries the whole schedule — everyone's courses included. Anyone who opens it sees the full calendar.</dd>
@@ -72,11 +57,16 @@ export function AboutPage({ onClose }: Props) {
             </div>
           </dl>
 
-          <button type="button" className="btn btn--primary aboutpage__cta" onClick={onClose}>
+          <p className="homepage__note">
+            No accounts, no backend — your data lives in your browser and inside the links you choose
+            to share.
+          </p>
+
+          <button type="button" className="btn btn--primary homepage__cta" onClick={onClose}>
             Open the calendar →
           </button>
 
-          <footer className="aboutpage__foot">
+          <footer className="homepage__foot">
             a{' '}
             <a href="https://reodite.com" target="_blank" rel="noreferrer">
               Reodite
