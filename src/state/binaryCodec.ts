@@ -351,6 +351,22 @@ function encodeGroup(state: GroupState): Uint8Array {
     personSchedules.push(indices);
   }
 
+  // Sort so LZMA sees co-located similar sections, then remap the refs
+  const ordered = sectionTable
+    .map((s, i) => ({ s, i }))
+    .sort((a, b) => {
+      const cc = a.s.courseCode.localeCompare(b.s.courseCode);
+      return cc !== 0 ? cc : a.s.component.localeCompare(b.s.component);
+    });
+  const refRemap = new Map<number, number>();
+  for (let ni = 0; ni < ordered.length; ni++) {
+    sectionTable[ni] = ordered[ni].s;
+    refRemap.set(ordered[ni].i, ni);
+  }
+  for (const refs of personSchedules) {
+    if (refs) for (let i = 0; i < refs.length; i++) refs[i] = refRemap.get(refs[i])!;
+  }
+
   /* ---- write ---- */
   w.writeByte(MAGIC);
   w.writeByte(WIRE_FORMAT);
