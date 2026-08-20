@@ -242,16 +242,18 @@ function readId(r: Reader): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
-// meeting flag packing                                                      
+// section flag bits (one byte after the dept prefix string)
+const SECTION_CAMPUS_IS_V = 1 << 0;
 
-const F_CAMPUS_IS_V = 1 << 0;
-const F_BUILDING_INDEX = 1 << 1;
-const F_BUILDING_STRINGS = 1 << 2;
-const F_HAS_FLOOR = 1 << 3;
-const F_HAS_ROOM = 1 << 4;
+// meeting flag packing
+
+const F_BUILDING_INDEX = 1 << 0;
+const F_BUILDING_STRINGS = 1 << 1;
+const F_HAS_FLOOR = 1 << 2;
+const F_HAS_ROOM = 1 << 3;
 
 function packMeetingFlags(m: MeetingPattern): number {
-  let f = m.campus === 'UBCV' ? F_CAMPUS_IS_V : 0;
+  let f = 0;
   if (m.buildingCode) {
     const idx = codeToIndex(m.buildingCode);
     if (idx !== undefined) {
@@ -323,6 +325,15 @@ function joinCourseCode(dept: string, num: number): string {
   return num > 0 ? `${dept} ${num}` : dept;
 }
 
+/** Strips the trailing _V/_O campus suffix off the dept token. The suffix is
+ *  dropped from the string and stored as one bit on the section. */
+function splitDeptSuffix(dept: string): { prefix: string; isV: boolean } {
+  if (!dept) return { prefix: '', isV: true };
+  if (dept.endsWith('_V')) return { prefix: dept.slice(0, -2), isV: true };
+  if (dept.endsWith('_O')) return { prefix: dept.slice(0, -2), isV: false };
+  throw new Error(`dept "${dept}" has no _V/_O suffix; not a UBC course code`);
+}
+
 // encode blob                                                                
 
 function encodeGroup(state: GroupState): Uint8Array {
@@ -378,7 +389,9 @@ function encodeGroup(state: GroupState): Uint8Array {
   w.writeVarint(sectionTable.length);
   for (const s of sectionTable) {
     const [dept, num] = splitCourseCode(s.courseCode);
-    w.writeString(dept);
+    const { prefix, isV } = splitDeptSuffix(dept);
+    w.writeString(prefix);
+    w.writeByte(isV ? SECTION_CAMPUS_IS_V : 0);
     w.writeVarint(num);
     w.writeString(s.title);
     w.writeString(s.component);
@@ -466,8 +479,11 @@ function decodeGroup(bytes: Uint8Array): GroupState {
   const sectionCount = r.readVarint();
   const sectionRows: Section[] = [];
   for (let i = 0; i < sectionCount; i++) {
-    const dept = r.readString();
+    const deptPrefix = r.readString();
+    const isV = (r.readByte() & SECTION_CAMPUS_IS_V) !== 0;
+    const campus: MeetingPattern['campus'] = isV ? 'UBCV' : 'UBCO';
     const num = r.readVarint();
+    const dept = deptPrefix ? `${deptPrefix}_${isV ? 'V' : 'O'}` : '';
     const title = r.readString();
     const component = r.readString();
     const instructorCount = r.readVarint();
@@ -503,7 +519,6 @@ function decodeGroup(bytes: Uint8Array): GroupState {
       }
       const floor = f & F_HAS_FLOOR ? r.readString() : undefined;
       const room = f & F_HAS_ROOM ? r.readString() : undefined;
-      const campus: MeetingPattern['campus'] = f & F_CAMPUS_IS_V ? 'UBCV' : 'UBCO';
       meetings.push({
         days: unpackDayMask(dayMask),
         startMin,
