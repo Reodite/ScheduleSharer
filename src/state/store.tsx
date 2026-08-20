@@ -31,6 +31,7 @@ export type Action =
   | { type: 'replaceSchedule'; id: string; schedule: Schedule }
   | { type: 'removeFromRoster'; personId: string } // also strips them from every group
   | { type: 'togglePin'; personId: string }
+  | { type: 'setMe'; personId: string }
   | { type: 'importProfile'; person: Person }
   // membership actions on the ACTIVE schedule
   | { type: 'addToGroup'; personId: string }
@@ -63,7 +64,12 @@ function updateRosterPerson(lib: Library, id: string, fn: (p: Person) => Person)
 function reducer(lib: Library, action: Action): Library {
   switch (action.type) {
     case 'addPerson': {
-      const withPerson = { ...lib, people: [...lib.people, action.person] };
+      const withPerson = {
+        ...lib,
+        people: [...lib.people, action.person],
+        // the first person created on this device is presumed to be its owner
+        meId: lib.meId ?? action.person.id,
+      };
       return updateActiveGroup(withPerson, (g) => ({
         ...g,
         members: [...g.members, { personId: action.person.id, enabled: true }],
@@ -79,6 +85,8 @@ function reducer(lib: Library, action: Action): Library {
       return removeFromRoster(lib, action.personId);
     case 'togglePin':
       return togglePin(lib, action.personId);
+    case 'setMe':
+      return lib.people.some((p) => p.id === action.personId) ? { ...lib, meId: action.personId } : lib;
     case 'importProfile':
       return importPeople(lib, [action.person]);
 
@@ -148,7 +156,7 @@ export interface BootImport {
 
 function freshLibrary(): Library {
   const g = freshGroup('My schedule');
-  return { activeId: g.groupId, people: [], groups: [g], pinnedIds: [] };
+  return { activeId: g.groupId, people: [], groups: [g], pinnedIds: [], meId: null };
 }
 
 function loadLibrary(): Library {

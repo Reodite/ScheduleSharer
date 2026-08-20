@@ -114,6 +114,12 @@ export interface Library {
   groups: Group[];
   /** roster people pinned to the top of the People list (local-only) */
   pinnedIds: string[];
+  /**
+   * which roster person is the device owner (local-only). Set on the first
+   * locally-created person, correctable from the People page. Null on
+   * migrated/legacy data until then.
+   */
+  meId: string | null;
 }
 
 export function freshGroup(name = ''): Group {

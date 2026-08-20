@@ -10,19 +10,26 @@ import type { Person } from '../types';
 
 interface Props {
   onClose: () => void;
+  /** open the handle/avatar editor for a roster person */
+  onEdit: (person: Person) => void;
 }
 
 /**
- * Full-page roster (#people): everyone ever imported on this device. Search
- * by name or course, pin favorites, copy profile links, hover a row for a
- * week-at-a-glance preview — and BUILD schedules: select people, name the
- * schedule, create it (or add the selection to the current schedule).
+ * Full-page roster (#people): everyone ever imported on this device,
+ * organized into You / Pinned / Everyone (searching flattens the list).
+ * Search by name or course, pin favorites, edit handle/avatar, copy profile
+ * links, hover a row for a week-at-a-glance preview — and BUILD schedules:
+ * select people (you start selected), name the schedule, create it, or add
+ * the selection to the current schedule.
  */
-export function PeoplePage({ onClose }: Props) {
+export function PeoplePage({ onClose, onEdit }: Props) {
   const { library, group, dispatch } = useStore();
   const toast = useToast();
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(
+    // building a schedule almost always includes yourself — start selected
+    () => new Set(library.meId ? [library.meId] : []),
+  );
   const [newName, setNewName] = useState('');
   const [preview, setPreview] = useState<{ person: Person; anchor: { top: number; left: number; right: number } } | null>(null);
 
@@ -50,11 +57,23 @@ export function PeoplePage({ onClose }: Props) {
       (s) => s.courseCode.toLowerCase().includes(q) || s.title.toLowerCase().includes(q),
     ) ?? false);
 
-  // pinned first (in pin order), then everyone else in roster order
-  const rows = [
-    ...(library.pinnedIds.map((id) => library.people.find((p) => p.id === id)).filter(Boolean) as Person[]),
-    ...library.people.filter((p) => !pinned.has(p.id)),
-  ].filter(matches);
+  const me = library.people.find((p) => p.id === library.meId) ?? null;
+  const pinnedRows = library.pinnedIds
+    .map((id) => library.people.find((p) => p.id === id))
+    .filter((p): p is Person => !!p && p.id !== library.meId);
+  const everyoneRows = library.people.filter((p) => p.id !== library.meId && !pinned.has(p.id));
+
+  // sections collapse into one flat, unlabeled list while searching
+  const sections: { title: string | null; rows: Person[] }[] = q
+    ? [{ title: null, rows: library.people.filter(matches) }]
+    : (
+        [
+          me && { title: 'You', rows: [me] },
+          pinnedRows.length > 0 && { title: 'Pinned', rows: pinnedRows },
+          everyoneRows.length > 0 && { title: 'Everyone', rows: everyoneRows },
+        ].filter(Boolean) as { title: string; rows: Person[] }[]
+      );
+  const anyRows = sections.some((s) => s.rows.length > 0);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -94,6 +113,118 @@ export function PeoplePage({ onClose }: Props) {
     }
   }
 
+  function renderRow(p: Person) {
+    const isSelected = selected.has(p.id);
+    const isPinned = pinned.has(p.id);
+    const isMe = p.id === library.meId;
+    const inGroup = memberIds.has(p.id);
+    const inGroups = groupsOf(p.id);
+    const displayName = names.get(p.id) ?? p.handle;
+    return (
+      <div
+        key={p.id}
+        className={`person person--roster${isSelected ? ' person--selected' : ''}`}
+        onMouseEnter={(e) => {
+          const row = e.currentTarget.getBoundingClientRect();
+          const box = e.currentTarget.closest('.peoplepage__list')?.getBoundingClientRect() ?? row;
+          setPreview({ person: p, anchor: { top: row.top, left: box.left, right: box.right } });
+        }}
+        onMouseLeave={() => setPreview(null)}
+      >
+        <button
+          type="button"
+          className={`btn btn--ghost btn--icon person__focus${isSelected ? ' person__focus--active' : ''}`}
+          title={isSelected ? 'Deselect' : 'Select for a new schedule'}
+          aria-pressed={isSelected}
+          onClick={() => toggleSelect(p.id)}
+        >
+          <span className="person__focus-mark" aria-hidden="true" />
+        </button>
+        <AvatarChip avatar={p.avatar} size={30} title={displayName} />
+        <div className="person__main" onClick={() => toggleSelect(p.id)} title={isSelected ? 'Deselect' : 'Select for a new schedule'}>
+          <span className="person__handle">
+            {isPinned && !isMe && <span className="person__pinmark" aria-label="Pinned">📌</span>}
+            {displayName}
+            {isMe && <span className="person__ingroup person__ingroup--me">you</span>}
+            {inGroup && <span className="person__ingroup">in “{group.name || 'Untitled schedule'}”</span>}
+          </span>
+          <span className="person__meta">
+            {p.schedule
+              ? (() => {
+                  const n = new Set(p.schedule.sections.map((s) => s.courseCode || s.title)).size;
+                  return `${n} ${n === 1 ? 'course' : 'courses'}`;
+                })()
+              : 'no schedule yet'}
+            {' · '}
+            {inGroups.length === 0
+              ? 'in no schedules'
+              : `in ${inGroups.length} ${inGroups.length === 1 ? 'schedule' : 'schedules'}`}
+          </span>
+        </div>
+        <div className="person__actions">
+          <button type="button" className="btn btn--ghost btn--icon" title="Edit handle / avatar" onClick={() => onEdit(p)}>
+            ✎
+          </button>
+          <button
+            type="button"
+            className={`btn btn--ghost btn--icon${isPinned ? ' person__pin--active' : ''}`}
+            title={isPinned ? 'Unpin' : 'Pin to the top of this list'}
+            onClick={() => dispatch({ type: 'togglePin', personId: p.id })}
+          >
+            {isPinned ? '📌' : '📍'}
+          </button>
+          {!isMe && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--icon"
+              title="This is you — auto-selected when building schedules"
+              onClick={() => {
+                dispatch({ type: 'setMe', personId: p.id });
+                toast(`${p.handle} marked as you`);
+              }}
+            >
+              👤
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn--ghost btn--icon"
+            title="Copy profile link — shares just this person's schedule"
+            onClick={() => void copyProfileLink(p)}
+          >
+            🔗
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost btn--icon btn--danger"
+            title="Remove from this device"
+            onClick={() => {
+              const n = groupsOf(p.id).length;
+              if (
+                window.confirm(
+                  `Remove ${p.handle} from your people? ` +
+                    (n > 0
+                      ? `They'll also be removed from ${n} ${n === 1 ? 'schedule' : 'schedules'} on this device.`
+                      : 'They are in no schedules.'),
+                )
+              ) {
+                setPreview(null);
+                setSelected((prev) => {
+                  const next = new Set(prev);
+                  next.delete(p.id);
+                  return next;
+                });
+                dispatch({ type: 'removeFromRoster', personId: p.id });
+              }
+            }}
+          >
+            ×
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="peoplepage">
       <header className="peoplepage__head">
@@ -124,103 +255,16 @@ export function PeoplePage({ onClose }: Props) {
               from a friend. Everyone you import collects here, ready to be added to any schedule.
             </p>
           )}
-          {library.people.length > 0 && rows.length === 0 && (
+          {library.people.length > 0 && !anyRows && (
             <p className="people-empty">No one matches “{query.trim()}”.</p>
           )}
 
-          {rows.map((p) => {
-            const isSelected = selected.has(p.id);
-            const isPinned = pinned.has(p.id);
-            const inGroup = memberIds.has(p.id);
-            const inGroups = groupsOf(p.id);
-            const displayName = names.get(p.id) ?? p.handle;
-            return (
-              <div
-                key={p.id}
-                className={`person person--roster${isSelected ? ' person--selected' : ''}`}
-                onMouseEnter={(e) => {
-                  const row = e.currentTarget.getBoundingClientRect();
-                  const box = e.currentTarget.closest('.peoplepage__list')?.getBoundingClientRect() ?? row;
-                  setPreview({ person: p, anchor: { top: row.top, left: box.left, right: box.right } });
-                }}
-                onMouseLeave={() => setPreview(null)}
-              >
-                <button
-                  type="button"
-                  className={`btn btn--ghost btn--icon person__focus${isSelected ? ' person__focus--active' : ''}`}
-                  title={isSelected ? 'Deselect' : 'Select for a new schedule'}
-                  aria-pressed={isSelected}
-                  onClick={() => toggleSelect(p.id)}
-                >
-                  <span className="person__focus-mark" aria-hidden="true" />
-                </button>
-                <AvatarChip avatar={p.avatar} size={30} title={displayName} />
-                <div className="person__main" onClick={() => toggleSelect(p.id)} title={isSelected ? 'Deselect' : 'Select for a new schedule'}>
-                  <span className="person__handle">
-                    {isPinned && <span className="person__pinmark" aria-label="Pinned">📌</span>}
-                    {displayName}
-                    {inGroup && <span className="person__ingroup">in “{group.name || 'Untitled schedule'}”</span>}
-                  </span>
-                  <span className="person__meta">
-                    {p.schedule
-                      ? (() => {
-                          const n = new Set(p.schedule.sections.map((s) => s.courseCode || s.title)).size;
-                          return `${n} ${n === 1 ? 'course' : 'courses'}`;
-                        })()
-                      : 'no schedule yet'}
-                    {' · '}
-                    {inGroups.length === 0
-                      ? 'in no schedules'
-                      : `in ${inGroups.length} ${inGroups.length === 1 ? 'schedule' : 'schedules'}`}
-                  </span>
-                </div>
-                <div className="person__actions">
-                  <button
-                    type="button"
-                    className={`btn btn--ghost btn--icon${isPinned ? ' person__pin--active' : ''}`}
-                    title={isPinned ? 'Unpin' : 'Pin to the top of this list'}
-                    onClick={() => dispatch({ type: 'togglePin', personId: p.id })}
-                  >
-                    {isPinned ? '📌' : '📍'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--ghost btn--icon"
-                    title="Copy profile link — shares just this person's schedule"
-                    onClick={() => void copyProfileLink(p)}
-                  >
-                    🔗
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--ghost btn--icon btn--danger"
-                    title="Remove from this device"
-                    onClick={() => {
-                      const n = groupsOf(p.id).length;
-                      if (
-                        window.confirm(
-                          `Remove ${p.handle} from your people? ` +
-                            (n > 0
-                              ? `They'll also be removed from ${n} ${n === 1 ? 'schedule' : 'schedules'} on this device.`
-                              : 'They are in no schedules.'),
-                        )
-                      ) {
-                        setPreview(null);
-                        setSelected((prev) => {
-                          const next = new Set(prev);
-                          next.delete(p.id);
-                          return next;
-                        });
-                        dispatch({ type: 'removeFromRoster', personId: p.id });
-                      }
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          {sections.map((section, i) => (
+            <div key={section.title ?? `flat-${i}`} className="peoplepage__section">
+              {section.title && <h3 className="peoplepage__sectiontitle">{section.title}</h3>}
+              {section.rows.map(renderRow)}
+            </div>
+          ))}
         </div>
       </div>
 

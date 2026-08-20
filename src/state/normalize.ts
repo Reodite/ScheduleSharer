@@ -125,7 +125,8 @@ export function normalizeLibrary(raw: unknown): Library | null {
   const pinnedIds = Array.isArray(l.pinnedIds)
     ? (l.pinnedIds as unknown[]).filter((id): id is string => typeof id === 'string' && ids.has(id))
     : [];
-  return { activeId, people, groups, pinnedIds };
+  const meId = typeof l.meId === 'string' && ids.has(l.meId) ? l.meId : null;
+  return { activeId, people, groups, pinnedIds, meId };
 }
 
 export function normalizeGroup(raw: unknown): GroupState {

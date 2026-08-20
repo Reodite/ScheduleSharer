@@ -205,6 +205,7 @@ export function removeFromRoster(lib: Library, personId: string): Library {
     ...lib,
     people: lib.people.filter((p) => p.id !== personId),
     pinnedIds: lib.pinnedIds.filter((id) => id !== personId),
+    meId: lib.meId === personId ? null : lib.meId,
     groups: lib.groups.map((g) =>
       g.members.some((m) => m.personId === personId)
         ? { ...g, members: g.members.filter((m) => m.personId !== personId) }
@@ -283,8 +284,8 @@ export function migrateV2Groups(oldGroups: GroupState[], activeId?: string): Lib
   }
   if (groups.length === 0) {
     const fresh = freshGroup('My schedule');
-    return { activeId: fresh.groupId, people, groups: [fresh], pinnedIds: [] };
+    return { activeId: fresh.groupId, people, groups: [fresh], pinnedIds: [], meId: null };
   }
   const active = activeId && groups.some((g) => g.groupId === activeId) ? activeId : groups[0].groupId;
-  return { activeId: active, people, groups, pinnedIds: [] };
+  return { activeId: active, people, groups, pinnedIds: [], meId: null };
 }
