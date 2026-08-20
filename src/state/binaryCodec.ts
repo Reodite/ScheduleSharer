@@ -182,6 +182,13 @@ class Reader {
     return this.bytes[this.pos++];
   }
 
+  readBytes(n: number): Uint8Array {
+    if (this.pos + n > this.bytes.length) throw new RangeError('readBytes: underflow');
+    const out = this.bytes.subarray(this.pos, this.pos + n);
+    this.pos += n;
+    return out;
+  }
+
   readVarint(): number {
     let n = 0;
     let shift = 0;
@@ -210,6 +217,29 @@ class Reader {
     this.pos += len;
     return s;
   }
+}
+
+// ids are always 16 raw bytes; empty string (profile links) = 16 zero bytes
+
+const UUID_RE = /^([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})$/i;
+
+export function isUuid(s: string): boolean {
+  return UUID_RE.test(s);
+}
+
+function writeId(w: Writer, id: string): void {
+  if (!id) { w.writeBytes(new Uint8Array(16)); return; }
+  const m = UUID_RE.exec(id);
+  if (!m) throw new Error(`id is not a UUID: ${id}`);
+  const hex = m[1] + m[2] + m[3] + m[4] + m[5];
+  for (let i = 0; i < 16; i++) w.writeByte(parseInt(hex.slice(i * 2, i * 2 + 2), 16));
+}
+
+function readId(r: Reader): string {
+  const b = r.readBytes(16);
+  if (b.every((v) => v === 0)) return '';
+  const h = Array.from(b, (v) => v.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
 // meeting flag packing                                                      
@@ -326,7 +356,7 @@ function encodeGroup(state: GroupState): Uint8Array {
   w.writeByte(WIRE_FORMAT);
   w.writeByte(0); // flags, reserved; readers ignore unknown bits
 
-  w.writeString(state.groupId || '');
+  writeId(w, state.groupId || '');
   w.writeString(state.name || '');
 
   w.writeVarint(sectionTable.length);
@@ -363,7 +393,7 @@ function encodeGroup(state: GroupState): Uint8Array {
   w.writeVarint(state.people.length);
   for (let i = 0; i < state.people.length; i++) {
     const p = state.people[i];
-    w.writeString(p.id);
+    writeId(w, p.id);
     w.writeString(p.handle);
     /* Photo avatars strip down to initials (most share links have no image).
      * We fall back to initialsFor(handle) so the recipient gets a chip even
@@ -395,10 +425,10 @@ function encodePrivate(groupId: string, name: string, personIds: string[]): Uint
   w.writeByte(MAGIC);
   w.writeByte(WIRE_FORMAT);
   w.writeByte(0);
-  w.writeString(groupId);
+  writeId(w, groupId);
   w.writeString(name);
   w.writeVarint(personIds.length);
-  for (const id of personIds) w.writeString(id);
+  for (const id of personIds) writeId(w, id);
   return w.toBytes();
 }
 
@@ -414,7 +444,7 @@ function decodeGroup(bytes: Uint8Array): GroupState {
   const flags = r.readByte();
   if (flags !== 0) throw new Error(`unknown flags 0x${flags.toString(16)}`);
 
-  const groupId = r.readString();
+  const groupId = readId(r);
   const name = r.readString();
 
   const sectionCount = r.readVarint();
@@ -487,7 +517,7 @@ function decodeGroup(bytes: Uint8Array): GroupState {
   const personCount = r.readVarint();
   const people: Person[] = [];
   for (let i = 0; i < personCount; i++) {
-    const id = r.readString();
+    const id = readId(r);
     const handle = r.readString();
     const kind = r.readByte();
     const mark = r.readString();
@@ -549,11 +579,11 @@ function decodePrivate(bytes: Uint8Array): { groupId: string; name: string; pers
   const flags = r.readByte();
   if (flags !== 0) throw new Error(`unknown flags 0x${flags.toString(16)}`);
 
-  const groupId = r.readString();
+  const groupId = readId(r);
   const name = r.readString();
   const memberCount = r.readVarint();
   const personIds: string[] = [];
-  for (let i = 0; i < memberCount; i++) personIds.push(r.readString());
+  for (let i = 0; i < memberCount; i++) personIds.push(readId(r));
   if (r.remaining !== 0) throw new Error(`trailing bytes: ${r.remaining}`);
   return { groupId, name, personIds };
 }

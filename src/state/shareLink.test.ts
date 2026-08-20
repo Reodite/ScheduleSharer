@@ -32,20 +32,24 @@ export function makePerson(id: string, handle: string, file: string, updatedAt =
   };
 }
 
-function makeGroup(people: Person[], groupId = 'g-test', name = 'Test Crew'): GroupState {
-  return { schemaVersion: SCHEMA_VERSION, groupId, name, people };
-}
-
 const SPRING = 'View_Student_Registration_Saved_Schedule.xlsx';
 const FALL = 'View_Student_Registration_Saved_Schedule (1).xlsx';
 
+const UUID_A = '00000000-0000-4000-8000-000000000001';
+const UUID_B = '00000000-0000-4000-8000-000000000002';
+const UUID_G = '00000000-0000-4000-8000-00000000000a';
+
+function makeGroup(people: Person[], groupId = UUID_G, name = 'Test Crew'): GroupState {
+  return { schemaVersion: SCHEMA_VERSION, groupId, name, people };
+}
+
 describe('share link round-trip', () => {
   it('encodes and decodes a two-person group losslessly (minus link-stripped fields)', () => {
-    const state = makeGroup([makePerson('a1', 'alice', SPRING), makePerson('b2', 'bob', FALL)]);
+    const state = makeGroup([makePerson(UUID_A, 'alice', SPRING), makePerson(UUID_B, 'bob', FALL)], UUID_G);
     const hash = encodeShareHash(state);
     const decoded = decodeShareHash(hash)!;
 
-    expect(decoded.groupId).toBe('g-test');
+    expect(decoded.groupId).toBe(UUID_G);
     expect(decoded.name).toBe('Test Crew');
     expect(decoded.people).toHaveLength(2);
     const alice = decoded.people[0];
@@ -70,9 +74,9 @@ describe('share link round-trip', () => {
   });
 
   it('stores sections shared by multiple people only once (deduped payload)', () => {
-    const soloHash = encodeShareHash(makeGroup([makePerson('a1', 'alice', SPRING)]));
+    const soloHash = encodeShareHash(makeGroup([makePerson(UUID_A, 'alice', SPRING)]));
     const duoSameHash = encodeShareHash(
-      makeGroup([makePerson('a1', 'alice', SPRING), makePerson('b2', 'bob', SPRING)]),
+      makeGroup([makePerson(UUID_A, 'alice', SPRING), makePerson(UUID_B, 'bob', SPRING)]),
     );
     // adding a person with an IDENTICAL schedule should cost almost nothing
     const overhead = duoSameHash.length - soloHash.length;
@@ -86,7 +90,7 @@ describe('share link round-trip', () => {
   });
 
   it('strips photo avatars down to initials', () => {
-    const p = makePerson('a1', 'alice', SPRING);
+    const p = makePerson(UUID_A, 'alice', SPRING);
     p.avatar = { kind: 'image', color: '#3a86ff', imageDataUrl: 'data:image/jpeg;base64,xxxx' };
     const decoded = decodeShareHash(encodeShareHash(makeGroup([p])))!;
     expect(decoded.people[0].avatar.kind).toBe('initials');
@@ -97,7 +101,7 @@ describe('share link round-trip', () => {
 
   it('keeps a five-person link under the length budget', () => {
     const people = Array.from({ length: 5 }, (_, i) =>
-      makePerson(`p${i}`, `person${i}`, i % 2 ? FALL : SPRING),
+      makePerson(crypto.randomUUID(), `person${i}`, i % 2 ? FALL : SPRING),
     );
     const hash = encodeShareHash(makeGroup(people));
     expect(hash.length).toBeLessThan(URL_WARN_LENGTH);
@@ -117,7 +121,7 @@ describe('share link round-trip', () => {
 
 describe('building index encoding', () => {
   it('round-trips an on-map building via the static index, restoring the human name', () => {
-    const p = makePerson('a1', 'alice', SPRING);
+    const p = makePerson(UUID_A, 'alice', SPRING);
     const section = p.schedule!.sections[0];
     if (!section.meetings[0].buildingCode) throw new Error('fixture has no buildingCode');
     const decoded = decodeShareHash(encodeShareHash(makeGroup([p])))!;
@@ -127,7 +131,7 @@ describe('building index encoding', () => {
   });
 
   it('writes only the code on the wire for off-map buildings (name is not preserved)', () => {
-    const p = makePerson('a1', 'alice', SPRING);
+    const p = makePerson(UUID_A, 'alice', SPRING);
     p.schedule!.sections[0].meetings[0].buildingCode = 'XXYY';
     p.schedule!.sections[0].meetings[0].buildingName = 'Off-Map Building';
     const decoded = decodeShareHash(encodeShareHash(makeGroup([p])))!;
@@ -197,17 +201,17 @@ describe('normalizeGroup (v1 data migration)', () => {
 
 describe('profile links (#p=)', () => {
   it('round-trips one person, schedule and section ids intact', () => {
-    const p = makePerson('a1', 'alice', SPRING);
+    const p = makePerson(UUID_A, 'alice', SPRING);
     const hash = encodeProfileHash(p);
     expect(hash.startsWith('#p=')).toBe(true);
     const decoded = decodeProfileHash(hash)!;
-    expect(decoded.id).toBe('a1');
+    expect(decoded.id).toBe(UUID_A);
     expect(decoded.handle).toBe('alice');
     expect(decoded.schedule!.sections.map((s) => s.id)).toEqual(p.schedule!.sections.map((s) => s.id));
   });
 
   it('is far smaller than a group link and strips photos like group links do', () => {
-    const p = makePerson('a1', 'alice', SPRING);
+    const p = makePerson(UUID_A, 'alice', SPRING);
     p.avatar = { kind: 'image', color: '#3a86ff', imageDataUrl: 'data:image/jpeg;base64,xxxx' };
     const hash = encodeProfileHash(p);
     expect(hash.length).toBeLessThan(1200);
@@ -217,7 +221,7 @@ describe('profile links (#p=)', () => {
   });
 
   it('each decoder ignores the other prefix', () => {
-    const p = makePerson('a1', 'alice', SPRING);
+    const p = makePerson(UUID_A, 'alice', SPRING);
     expect(decodeShareHash(encodeProfileHash(p))).toBeNull();
     expect(decodeProfileHash(encodeShareHash(makeGroup([p])))).toBeNull();
     expect(decodeProfileHash('')).toBeNull();
@@ -227,19 +231,19 @@ describe('profile links (#p=)', () => {
 
 describe('private links (#i=)', () => {
   it('round-trips only the group identity and member ids — no schedule data', () => {
-    const state = makeGroup([makePerson('a1', 'alice', SPRING), makePerson('b2', 'bob', FALL)]);
+    const state = makeGroup([makePerson(UUID_A, 'alice', SPRING), makePerson(UUID_B, 'bob', FALL)]);
     const hash = encodePrivateShareHash(state);
     expect(hash.startsWith('#i=')).toBe(true);
     // dramatically smaller than the public link because nothing but ids travel
     expect(hash.length).toBeLessThan(encodeShareHash(state).length / 4);
     const decoded = decodePrivateShareHash(hash)!;
-    expect(decoded).toEqual({ groupId: 'g-test', name: 'Test Crew', personIds: ['a1', 'b2'] });
+    expect(decoded).toEqual({ groupId: state.groupId, name: 'Test Crew', personIds: [UUID_A, UUID_B] });
     // and the payload genuinely contains no handles or courses
     expect(hash.includes('alice')).toBe(false);
   });
 
   it('decoders stay in their lanes and garbage throws', () => {
-    const state = makeGroup([makePerson('a1', 'alice', SPRING)]);
+    const state = makeGroup([makePerson(UUID_A, 'alice', SPRING)]);
     expect(decodePrivateShareHash(encodeShareHash(state))).toBeNull();
     expect(decodeShareHash(encodePrivateShareHash(state))).toBeNull();
     expect(decodePrivateShareHash('')).toBeNull();
@@ -250,7 +254,7 @@ describe('binary codec raw sizes', () => {
   it('1-person profile raw payload is well under 1.5 KiB', () => {
     const bytes = binaryCodec.encodeGroup({
       schemaVersion: SCHEMA_VERSION, groupId: '', name: '',
-      people: [makePerson('p1', 'a', SPRING)],
+      people: [makePerson(UUID_A, 'a', SPRING)],
     });
     expect(bytes.length).toBeLessThan(1536);
   });
@@ -258,13 +262,13 @@ describe('binary codec raw sizes', () => {
   it('4-person group raw payload is well under 6 KiB', () => {
     const state: GroupState = {
       schemaVersion: SCHEMA_VERSION,
-      groupId: 'g',
+      groupId: UUID_G,
       name: 'crew',
       people: [
-        makePerson('a', 'alice', SPRING),
-        makePerson('b', 'bob', FALL),
-        makePerson('c', 'carol', SPRING),
-        makePerson('d', 'dave', FALL),
+        makePerson(UUID_A, 'alice', SPRING),
+        makePerson(UUID_B, 'bob', FALL),
+        makePerson(crypto.randomUUID(), 'carol', SPRING),
+        makePerson(crypto.randomUUID(), 'dave', FALL),
       ],
     };
     expect(binaryCodec.encodeGroup(state).length).toBeLessThan(6144);

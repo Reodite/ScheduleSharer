@@ -1,6 +1,7 @@
 import type { Group, GroupMember, GroupState, Library, MeetingPattern, Person, Section } from '../types';
 import { MAX_GROUPS, SCHEMA_VERSION } from '../types';
 import { computeSectionId } from '../parse/sectionId';
+import { isUuid } from './binaryCodec';
 
 /**
  * Tolerant migration of stored GroupState (localStorage / JSON exports) to
@@ -101,29 +102,49 @@ export function normalizeLibrary(raw: unknown): Library | null {
   if (!l || !Array.isArray(l.people) || !Array.isArray(l.groups) || l.groups.length === 0) return null;
 
   const people = l.people.map(normalizePerson).filter(Boolean) as Person[];
+  // Migrate legacy non-UUID person IDs; remap member references to match
+  const idRemap = new Map<string, string>();
+  for (const p of people) {
+    if (!isUuid(p.id)) {
+      const nid = crypto.randomUUID();
+      idRemap.set(p.id, nid);
+      p.id = nid;
+    }
+  }
   const ids = new Set(people.map((p) => p.id));
 
   const groups: Group[] = [];
+  const groupIdRemap = new Map<string, string>();
   for (const rawG of l.groups.slice(0, MAX_GROUPS)) {
     const g = rawG as Record<string, unknown>;
     if (!g || typeof g.groupId !== 'string' || !g.groupId) continue;
+    let groupId = g.groupId;
+    if (!isUuid(groupId)) {
+      groupId = crypto.randomUUID();
+      groupIdRemap.set(g.groupId, groupId);
+    }
     const seen = new Set<string>();
     const members: GroupMember[] = [];
     if (Array.isArray(g.members)) {
       for (const rawM of g.members) {
         const m = rawM as Record<string, unknown>;
         if (!m || typeof m.personId !== 'string' || seen.has(m.personId)) continue;
-        seen.add(m.personId);
-        members.push({ personId: m.personId, enabled: m.enabled !== false });
+        const personId = idRemap.get(m.personId) ?? m.personId;
+        seen.add(personId);
+        members.push({ personId, enabled: m.enabled !== false });
       }
     }
-    groups.push({ groupId: g.groupId, name: typeof g.name === 'string' ? g.name : '', members });
+    groups.push({ groupId, name: typeof g.name === 'string' ? g.name : '', members });
   }
   if (groups.length === 0) return null;
 
-  const activeId = groups.some((g) => g.groupId === l.activeId) ? (l.activeId as string) : groups[0].groupId;
+  const rawActiveId = (l.activeId as string) ?? '';
+  const activeId = groupIdRemap.get(rawActiveId)
+    ?? (groups.some((g) => g.groupId === rawActiveId) ? rawActiveId : groups[0].groupId);
   const pinnedIds = Array.isArray(l.pinnedIds)
-    ? (l.pinnedIds as unknown[]).filter((id): id is string => typeof id === 'string' && ids.has(id))
+    ? (l.pinnedIds as unknown[])
+        .map((id) => idRemap.get(id as string) ?? (id as string))
+        .filter((id): id is string => typeof id === 'string' && ids.has(id))
     : [];
   return { activeId, people, groups, pinnedIds };
 }
@@ -133,10 +154,15 @@ export function normalizeGroup(raw: unknown): GroupState {
   const people = Array.isArray(g?.people)
     ? (g.people.map(normalizePerson).filter(Boolean) as Person[])
     : [];
+  for (const p of people) {
+    if (!isUuid(p.id)) p.id = crypto.randomUUID();
+  }
+  const rawGroupId = typeof g?.groupId === 'string' ? g.groupId : '';
+  const groupId = !rawGroupId || isUuid(rawGroupId) ? rawGroupId : crypto.randomUUID();
   return {
     schemaVersion: SCHEMA_VERSION,
     // pre-v4 data has no group identity — empty id routes into the active schedule
-    groupId: typeof g?.groupId === 'string' ? g.groupId : '',
+    groupId,
     name: typeof g?.name === 'string' ? g.name : '',
     people,
   };
