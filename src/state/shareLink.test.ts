@@ -9,7 +9,9 @@ import {
   encodePrivateShareHash,
   encodeProfileHash,
   encodeShareHash,
+  URL_WARN_LENGTH,
 } from './shareLink';
+import { binaryCodec } from './binaryCodec';
 import { normalizeGroup } from './normalize';
 import type { GroupState, Person } from '../types';
 import { SCHEMA_VERSION } from '../types';
@@ -91,12 +93,13 @@ describe('share link round-trip', () => {
     expect(decoded.people[0].avatar.color).toBe('#3a86ff');
   });
 
-  it('keeps a five-person link under 2000 chars (fits one Discord message)', () => {
+  it('keeps a five-person link under the length budget', () => {
     const people = Array.from({ length: 5 }, (_, i) =>
       makePerson(`p${i}`, `person${i}`, i % 2 ? FALL : SPRING),
     );
     const hash = encodeShareHash(makeGroup(people));
-    expect(hash.length).toBeLessThan(2000);
+    expect(hash.length).toBeLessThan(URL_WARN_LENGTH);
+    expect(hash.length).toBeLessThan(1500);
   });
 
   it('returns null for non-share hashes and throws on garbage payloads', () => {
@@ -217,5 +220,29 @@ describe('private links (#i=)', () => {
     expect(decodeShareHash(encodePrivateShareHash(state))).toBeNull();
     expect(decodePrivateShareHash('')).toBeNull();
     expect(() => decodePrivateShareHash('#i=!!!garbage!!!')).toThrow();
+  });
+});
+describe('binary codec raw sizes', () => {
+  it('1-person profile raw payload is well under 1.5 KiB', () => {
+    const bytes = binaryCodec.encodeGroup({
+      schemaVersion: SCHEMA_VERSION, groupId: '', name: '',
+      people: [makePerson('p1', 'a', SPRING)],
+    });
+    expect(bytes.length).toBeLessThan(1536);
+  });
+
+  it('4-person group raw payload is well under 6 KiB', () => {
+    const state: GroupState = {
+      schemaVersion: SCHEMA_VERSION,
+      groupId: 'g',
+      name: 'crew',
+      people: [
+        makePerson('a', 'alice', SPRING),
+        makePerson('b', 'bob', FALL),
+        makePerson('c', 'carol', SPRING),
+        makePerson('d', 'dave', FALL),
+      ],
+    };
+    expect(binaryCodec.encodeGroup(state).length).toBeLessThan(6144);
   });
 });

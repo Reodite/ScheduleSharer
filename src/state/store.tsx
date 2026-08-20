@@ -18,7 +18,7 @@ import {
 import type { ImportOutcome } from './library';
 import { normalizeGroup, normalizeLibrary } from './normalize';
 import { decodePrivateShareHash, decodeProfileHash, decodeShareHash, ShareDecodeError } from './shareLink';
-import type { PrivateShare } from './shareLink';
+import type { PrivateShare } from './binaryCodec';
 
 const STORAGE_KEY = 'schedulesharer.v3';
 const V2_KEY = 'schedulesharer.v2';

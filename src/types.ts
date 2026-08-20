@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /** hard cap on locally cached schedules */
 export const MAX_GROUPS = 5;
