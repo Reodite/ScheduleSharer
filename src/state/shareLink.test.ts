@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { deflateSync, strToU8 } from 'fflate';
 import { parseScheduleXlsx } from '../parse/scheduleParser';
 import {
   decodePrivateShareHash,
@@ -272,5 +273,36 @@ describe('binary codec raw sizes', () => {
       ],
     };
     expect(binaryCodec.encodeGroup(state).length).toBeLessThan(6144);
+  });
+});
+
+describe('v4 link compatibility', () => {
+  function toBase64Url(bytes: Uint8Array): string {
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  it('decodes a v4 public link', () => {
+    const v4Payload = [4, 'gid', 'crew', [], [['pid', 'alice', ['emoji', '🦊', '#e07a5f'], '2026-01-01T00:00:00.000Z', null]]];
+    const link = '#e=' + toBase64Url(deflateSync(strToU8(JSON.stringify(v4Payload)), { level: 9 }));
+    const decoded = decodeShareHash(link);
+    expect(decoded).not.toBeNull();
+    expect(decoded!.groupId).toBe('gid');
+    expect(decoded!.name).toBe('crew');
+    expect(decoded!.people).toHaveLength(1);
+    expect(decoded!.people[0].handle).toBe('alice');
+  });
+
+  it('decodes a v4 private link', () => {
+    const v4Payload = [4, 'gid', 'crew', ['pid1', 'pid2']];
+    const link = '#i=' + toBase64Url(deflateSync(strToU8(JSON.stringify(v4Payload)), { level: 9 }));
+    const decoded = decodePrivateShareHash(link);
+    expect(decoded).not.toBeNull();
+    expect(decoded!.groupId).toBe('gid');
+    expect(decoded!.name).toBe('crew');
+    expect(decoded!.personIds).toEqual(['pid1', 'pid2']);
   });
 });

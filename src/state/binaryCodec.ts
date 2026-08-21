@@ -47,7 +47,7 @@ function codeToIndex(code: string): number | undefined {
 }
 
 // high-base unicode encoding for the URL hash fragment lives in
-// unicodeBase.ts (discovers LZMA bytes via encodeBlob/decodeBlob below).
+// unicodeBase.ts (discoveres LZMA bytes via encodeV5Payload/decodeV5Payload below).
 
 // dates                                                                     
 
@@ -457,7 +457,7 @@ function encodePrivate(groupId: string, name: string, personIds: string[]): Uint
 
 // decode blob                                                                
 
-function decodeGroup(bytes: Uint8Array): GroupState {
+function parseV5(bytes: Uint8Array): GroupState {
   const r = new Reader(bytes);
   const magic = r.readByte();
   const ver = r.readByte();
@@ -601,7 +601,7 @@ function decodeGroup(bytes: Uint8Array): GroupState {
   };
 }
 
-function decodePrivate(bytes: Uint8Array): { groupId: string; name: string; personIds: string[] } {
+function parseV5Private(bytes: Uint8Array): { groupId: string; name: string; personIds: string[] } {
   const r = new Reader(bytes);
   const magic = r.readByte();
   const ver = r.readByte();
@@ -619,11 +619,11 @@ function decodePrivate(bytes: Uint8Array): { groupId: string; name: string; pers
 
 // pipeline (LZMA + high-base unicode encoding)
 
-export function encodeBlob(bytes: Uint8Array): string {
+export function encodeV5Payload(bytes: Uint8Array): string {
   return encodeHighBase(lzmaCompress(bytes, 9));
 }
 
-export function decodeBlob(payload: string): Uint8Array {
+export function decodeV5Payload(payload: string): Uint8Array {
   return lzmaDecompress(decodeHighBase(payload));
 }
 
@@ -638,7 +638,7 @@ export interface PrivateShare {
 
 export const binaryCodec = {
   encodeGroup,
-  decodeGroup,
+  parseV5,
   encodePrivate,
-  decodePrivate,
+  parseV5Private,
 };
