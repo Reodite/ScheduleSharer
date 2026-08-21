@@ -23,6 +23,7 @@ import type {
 } from '../types';
 import { computeSectionId } from '../parse/sectionId';
 import { BUILDINGS } from './buildingTable';
+import { AVATAR_COLORS, AVATAR_EMOJI } from '../avatar/avatarUtils';
 
 /** Wire-format version. Bump to break compatibility. */
 export const WIRE_FORMAT = 0x05;
@@ -427,15 +428,25 @@ function encodeGroup(state: GroupState): Uint8Array {
     /* Photo avatars strip down to initials (most share links have no image).
      * We fall back to initialsFor(handle) so the recipient gets a chip even
      * when the sender never set initials. */
+    /* Avatar: byte0 packs kind bit (bit7) + colorIndex (0..6) or 0x7F "custom color
+     * string follows". For emoji kind, byte1 is the emoji palette index; for
+     * initials, a length-varint + UTF-8 bytes. AVATAR_EMOJI/AVATAR_COLORS live in
+     * the bundle so only the index travels. */
     const isEmoji = p.avatar.kind === 'emoji';
-    const mark: string = isEmoji
-      ? p.avatar.emoji || ''
-      : p.avatar.initials || initialsFor(p.handle);
-    const markBytes = new TextEncoder().encode(mark);
-    // kind bit packed into low bit of mark length so emoji/initials costs no extra byte
-    w.writeVarint((markBytes.length << 1) | (isEmoji ? 0 : 1));
-    w.writeBytes(markBytes);
-    w.writeString(p.avatar.color);
+    const colorIdx = AVATAR_COLORS.indexOf(p.avatar.color);
+    const hasCustomColor = colorIdx < 0;
+    if (isEmoji) {
+      w.writeByte(hasCustomColor ? 0x7F : colorIdx & 0x7F);
+      const emojiIdx = AVATAR_EMOJI.indexOf(p.avatar.emoji || '');
+      w.writeByte(Math.max(0, emojiIdx));
+    } else {
+      w.writeByte(0x80 | (hasCustomColor ? 0x7F : colorIdx & 0x7F));
+      const mark = p.avatar.initials || initialsFor(p.handle);
+      const markBytes = new TextEncoder().encode(mark);
+      w.writeVarint(markBytes.length);
+      w.writeBytes(markBytes);
+    }
+    if (hasCustomColor) w.writeString(p.avatar.color);
     const seconds = Math.floor(new Date(p.updatedAt).getTime() / 1000);
     w.writeVarint(Number.isFinite(seconds) ? Math.max(0, seconds) : 0);
     const indices = personSchedules[i];
@@ -545,11 +556,18 @@ function decodeGroup(bytes: Uint8Array): GroupState {
   for (let i = 0; i < personCount; i++) {
     const id = readId(r);
     const handle = r.readString();
-    const packedMark = r.readVarint();
-    const isEmoji = (packedMark & 1) === 0;
-    const markLen = packedMark >>> 1;
-    const mark = markLen ? new TextDecoder().decode(r.readBytes(markLen)) : '';
-    const color = r.readString();
+    const packedKindColor = r.readByte();
+    const isEmoji = (packedKindColor & 0x80) === 0;
+    const colorIdx = packedKindColor & 0x7F;
+    const hasCustomColor = colorIdx === 0x7F;
+    let mark: string;
+    if (isEmoji) {
+      mark = AVATAR_EMOJI[r.readByte()] || '';
+    } else {
+      const len = r.readVarint();
+      mark = len ? new TextDecoder().decode(r.readBytes(len)) : '';
+    }
+    const color = hasCustomColor ? r.readString() : AVATAR_COLORS[colorIdx];
     const seconds = r.readVarint();
     const updatedAtIso = new Date(seconds * 1000).toISOString();
     const avatar: Avatar =
