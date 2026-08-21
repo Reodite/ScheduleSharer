@@ -5,7 +5,7 @@ import type { PrivateShare } from './binaryCodec';
 /**
  * Share links carry the whole group encoded as a tiny purpose-built binary
  * buffer (see binaryCodec.ts), then LZMA-compressed (preset 9 via lzma1)
- * and base64url'd into the URL hash.
+ * and high-base unicode-encoded into the URL hash.
  *
  * Hash prefixes:
  *   #e=   public schedule   — one or more people, schedules embedded

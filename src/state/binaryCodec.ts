@@ -2,8 +2,9 @@
  * Binary share-link format (v5 — wire byte 0x05).
  *
  * Encodes a GroupState / PrivateShare as a compact binary blob, then
- * compresses with LZMA and base64urls the result into a #e=, #p=, or #i=
- * hash. The wire layout is self-describing; no external dictionary.
+ * compresses with LZMA and high-base unicode-encodes the result into a
+ * #e=, #p=, or #i= hash fragment. The wire layout is self-describing; no
+ * external dictionary.
  *
  * Varints are unsigned LEB128 (little-endian within shifted groups). Strings
  * are length-prefixed UTF-8.
@@ -24,6 +25,7 @@ import type {
 import { computeSectionId } from '../parse/sectionId';
 import { BUILDINGS } from './buildingTable';
 import { AVATAR_COLORS, AVATAR_EMOJI } from '../avatar/avatarUtils';
+import { encodeHighBase, decodeHighBase } from './unicodeBase';
 
 /** Wire-format version. Bump to break compatibility. */
 export const WIRE_FORMAT = 0x05;
@@ -44,23 +46,8 @@ function codeToIndex(code: string): number | undefined {
   return buildingIndex.get(code);
 }
 
-// base64url
-
-function toBase64Url(bytes: Uint8Array): string {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function fromBase64Url(s: string): Uint8Array {
-  const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
-  const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
+// high-base unicode encoding for the URL hash fragment lives in
+// unicodeBase.ts (discovers LZMA bytes via encodeBlob/decodeBlob below).
 
 // dates                                                                     
 
@@ -630,14 +617,14 @@ function decodePrivate(bytes: Uint8Array): { groupId: string; name: string; pers
   return { groupId, name, personIds };
 }
 
-// pipeline (LZMA + base64url)                                               
+// pipeline (LZMA + high-base unicode encoding)
 
 export function encodeBlob(bytes: Uint8Array): string {
-  return toBase64Url(lzmaCompress(bytes, 9));
+  return encodeHighBase(lzmaCompress(bytes, 9));
 }
 
 export function decodeBlob(payload: string): Uint8Array {
-  return lzmaDecompress(fromBase64Url(payload));
+  return lzmaDecompress(decodeHighBase(payload));
 }
 
 // public surface                                                             
