@@ -56,12 +56,22 @@ export function decodeShareHash(hash: string): GroupState | null {
     );
   }
   if (!hash.startsWith(HASH_KEY)) return null;
+  try {
+    hash = decodeURIComponent(hash);
+  } catch {
+    throw new ShareDecodeError('This share link is damaged or truncated — ask for a fresh one.');
+  }
   return decodeBlobToGroup(hash.slice(HASH_KEY.length));
 }
 
 /** Decode a '#p=...' profile hash. Returns null if the hash isn't one. */
 export function decodeProfileHash(hash: string): Person | null {
   if (!hash.startsWith(PROFILE_HASH_KEY)) return null;
+  try {
+    hash = decodeURIComponent(hash);
+  } catch {
+    throw new ShareDecodeError('This profile link is damaged or truncated — ask for a fresh one.');
+  }
   const state = decodeBlobToGroup(hash.slice(PROFILE_HASH_KEY.length));
   const person = state.people[0];
   if (!person) throw new ShareDecodeError('This profile link is damaged or truncated — ask for a fresh one.');
@@ -81,6 +91,11 @@ export function buildPrivateShareUrl(state: GroupState): string {
 /** Decode a '#i=...' private hash. Returns null if the hash isn't one. */
 export function decodePrivateShareHash(hash: string): PrivateShare | null {
   if (!hash.startsWith(PRIVATE_HASH_KEY)) return null;
+  try {
+    hash = decodeURIComponent(hash);
+  } catch {
+    throw new ShareDecodeError('This private link is damaged or truncated — ask for a fresh one.');
+  }
   return decodeBlobToPrivate(hash.slice(PRIVATE_HASH_KEY.length));
 }
 
